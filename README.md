@@ -69,6 +69,33 @@ Formula: `FV = P(1+r)^n + PMT × [(1+r)^n − 1] / r` where `r` = monthly rate, 
 
 Indian stocks use Yahoo Finance suffixes: `.NS` (NSE), `.BO` (BSE). Foreign stocks use standard tickers. Value = `(quantity × currentPrice) − fees`.
 
+## Deploy for Mobile Access
+
+### Option 1: Render (recommended — free, persistent data)
+
+1. Push this repo to GitHub (already on `cursor/net-worth-calculator-5058`)
+2. Go to [render.com](https://render.com) → **New** → **Blueprint**
+3. Connect your GitHub repo — Render reads `render.yaml` automatically
+4. Click **Apply** — you get a public URL like `https://networth-calculator.onrender.com`
+5. Open that URL on your phone (works on any mobile browser)
+
+### Option 2: Vercel (requires external database)
+
+SQLite does not persist on Vercel serverless. Use [Render](#option-1-render--recommended--free-persistent-data) instead, or connect a [Neon Postgres](https://neon.tech) database and update `DATABASE_URL`.
+
+```bash
+npx vercel --prod
+```
+
+### Option 3: Docker (VPS / Railway / Fly.io)
+
+```bash
+docker build -t networth-calculator .
+docker run -p 3000:3000 -v networth-data:/app/prisma networth-calculator
+```
+
+Access at `http://<your-server-ip>:3000` on mobile (use HTTPS via a reverse proxy for production).
+
 ## Environment Variables
 
 | Variable | Default | Description |
