@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: networth-calculator
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: DATABASE_URL
+        value: file:./prisma/prod.db
+      - key: NODE_ENV
+        value: production

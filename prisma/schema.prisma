@@ -1,0 +1,37 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Asset {
+  id        String   @id @default(cuid())
+  name      String
+  category  String
+  currency  String   @default("INR")
+  notes     String?
+
+  value Float @default(0)
+
+  bankName    String?
+  accountType String?
+
+  symbol         String?
+  quantity       Float?
+  purchasePrice  Float?
+  currentPrice   Float?
+  fees           Float?    @default(0)
+  exchange       String?
+  lastRevaluedAt DateTime?
+
+  principal           Float?
+  interestRate        Float?
+  startDate           DateTime?
+  monthlyContribution Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
