@@ -5,8 +5,21 @@ const { randomUUID } = require("crypto");
 
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
-const DATA_FILE = path.join(ROOT, "data.json");
+const DATA_FILE = process.env.DATA_FILE || path.join(ROOT, "data.json");
 const CONFIG_FILE = path.join(ROOT, "config.json");
+
+// Ensure data file exists on first run (important for fresh deploys)
+function ensureDataFile() {
+  const dir = path.dirname(DATA_FILE);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  if (!fs.existsSync(DATA_FILE)) {
+    fs.writeFileSync(
+      DATA_FILE,
+      JSON.stringify({ config: { baseCurrency: "INR", lastUpdated: null }, assets: [] }, null, 2)
+    );
+  }
+}
+ensureDataFile();
 
 const MIME = {
   ".html": "text/html",
@@ -349,6 +362,10 @@ function serveStatic(filePath, res) {
 
 async function handleApi(req, res, url, query) {
   const appConfig = readConfig();
+
+  if (req.method === "GET" && url === "/api/health") {
+    return send(res, 200, { status: "ok", dataFile: DATA_FILE });
+  }
 
   // GET /api/search?q=&market=indian|foreign
   if (req.method === "GET" && url === "/api/search") {

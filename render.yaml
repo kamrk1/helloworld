@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: networth-calculator
+    runtime: node
+    plan: free
+    buildCommand: echo "No build step"
+    startCommand: node server.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATA_FILE
+        value: /opt/render/project/src/data.json

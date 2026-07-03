@@ -1,9 +1,33 @@
 {
   "config": {
     "baseCurrency": "INR",
-    "lastUpdated": "2026-07-03T18:12:19.957Z"
+    "lastUpdated": "2026-07-03T18:17:53.774Z"
   },
   "assets": [
+    {
+      "id": "cbea40a4-488d-4565-99f3-42ab87befae6",
+      "name": "Syrma SGS",
+      "category": "EQUITY_INDIAN",
+      "currency": "INR",
+      "notes": null,
+      "value": 68800,
+      "bankName": null,
+      "accountType": null,
+      "symbol": "SYRMA",
+      "yahooSymbol": "SYRMA.NS",
+      "quantity": 50,
+      "purchasePrice": null,
+      "currentPrice": 1376,
+      "fees": 0,
+      "exchange": "NSE",
+      "lastRevaluedAt": "2026-07-03T18:17:53.266Z",
+      "principal": null,
+      "interestRate": null,
+      "startDate": null,
+      "monthlyContribution": null,
+      "createdAt": "2026-07-03T18:16:16.358Z",
+      "updatedAt": "2026-07-03T18:17:53.266Z"
+    },
     {
       "id": "a9074964-906a-4b37-8387-27847a0a77ab",
       "name": "Cochin Shipyard",
@@ -20,13 +44,13 @@
       "currentPrice": 1524.1,
       "fees": 0,
       "exchange": "NSE",
-      "lastRevaluedAt": "2026-07-03T18:12:19.742Z",
+      "lastRevaluedAt": "2026-07-03T18:17:53.319Z",
       "principal": null,
       "interestRate": null,
       "startDate": null,
       "monthlyContribution": null,
       "createdAt": "2026-07-03T18:12:15.048Z",
-      "updatedAt": "2026-07-03T18:12:19.742Z"
+      "updatedAt": "2026-07-03T18:17:53.319Z"
     },
     {
       "id": "c3bfa13f-768f-46a6-91b7-87d6a103c771",
@@ -44,13 +68,13 @@
       "currentPrice": 71.12,
       "fees": 0,
       "exchange": "NSE",
-      "lastRevaluedAt": "2026-07-03T18:12:19.788Z",
+      "lastRevaluedAt": "2026-07-03T18:17:53.601Z",
       "principal": null,
       "interestRate": null,
       "startDate": null,
       "monthlyContribution": null,
       "createdAt": "2026-07-03T18:10:17.758Z",
-      "updatedAt": "2026-07-03T18:12:19.788Z"
+      "updatedAt": "2026-07-03T18:17:53.601Z"
     },
     {
       "id": "a1c98162-e4dd-4c11-beb5-69413a084da9",
@@ -68,13 +92,13 @@
       "currentPrice": 450.05,
       "fees": 0,
       "exchange": "NSE",
-      "lastRevaluedAt": "2026-07-03T18:12:19.856Z",
+      "lastRevaluedAt": "2026-07-03T18:17:53.673Z",
       "principal": null,
       "interestRate": null,
       "startDate": null,
       "monthlyContribution": null,
       "createdAt": "2026-07-03T18:08:19.656Z",
-      "updatedAt": "2026-07-03T18:12:19.856Z"
+      "updatedAt": "2026-07-03T18:17:53.673Z"
     },
     {
       "id": "552ea295-7722-4b54-8cde-015e3770b0ff",
@@ -92,13 +116,13 @@
       "currentPrice": 3333.8,
       "fees": 0,
       "exchange": "NSE",
-      "lastRevaluedAt": "2026-07-03T18:12:19.885Z",
+      "lastRevaluedAt": "2026-07-03T18:17:53.703Z",
       "principal": null,
       "interestRate": null,
       "startDate": null,
       "monthlyContribution": null,
       "createdAt": "2026-07-03T18:07:09.707Z",
-      "updatedAt": "2026-07-03T18:12:19.885Z"
+      "updatedAt": "2026-07-03T18:17:53.703Z"
     },
     {
       "id": "5b8a6f3d-7196-40f8-9ade-2157de29cc75",
@@ -163,13 +187,13 @@
       "currentPrice": 66.76,
       "fees": 0,
       "exchange": "OTHER",
-      "lastRevaluedAt": "2026-07-03T18:12:19.957Z",
+      "lastRevaluedAt": "2026-07-03T18:17:53.774Z",
       "principal": null,
       "interestRate": null,
       "startDate": null,
       "monthlyContribution": null,
       "createdAt": "2026-07-03T18:00:26.741Z",
-      "updatedAt": "2026-07-03T18:12:19.957Z",
+      "updatedAt": "2026-07-03T18:17:53.774Z",
       "yahooSymbol": "D05.SI"
     }
   ]
