@@ -91,10 +91,9 @@ async function fetchExchangeRates() {
 
 function buildYahooSymbol(symbol, exchange) {
   if (!symbol) return "";
-  let upper = symbol.toUpperCase().trim();
-  // Fix common wrong suffixes
+  let upper = normalizeSymbolInput(symbol);
   if (upper.endsWith(".SG")) upper = upper.replace(/\.SG$/, ".SI");
-  if (upper.includes(".")) return upper;
+  if (symbol.toUpperCase().includes(".") && symbol.includes(".")) return symbol.toUpperCase().trim();
 
   switch (exchange) {
     case "NSE": return `${upper}.NS`;
@@ -130,8 +129,18 @@ async function fetchStockPriceOnce(yahooSymbol) {
   return { price, currency: result.meta?.currency || "USD" };
 }
 
-async function fetchStockPrice(symbol, exchange, storedYahoo) {
-  const candidates = yahooSymbolCandidates(symbol, exchange, storedYahoo);
+async function fetchStockPrice(symbol, exchange, storedYahoo, category) {
+  let candidates = yahooSymbolCandidates(symbol, exchange, storedYahoo);
+
+  // If direct tickers fail, resolve via Yahoo search (e.g. "SYRMA SGS", "SYRMASGS")
+  if (category) {
+    try {
+      const resolved = await resolveEquitySymbol(symbol, category, storedYahoo);
+      if (resolved.yahooSymbol) candidates = [resolved.yahooSymbol, ...candidates];
+    } catch { /* ignore */ }
+  }
+
+  candidates = [...new Set(candidates.filter(Boolean))];
   const errors = [];
   for (const sym of candidates) {
     try {
@@ -159,8 +168,30 @@ function cleanDisplaySymbol(yahooSymbol) {
   return yahooSymbol.replace(/\.(NS|BO|L|SI|SG)$/i, "");
 }
 
-async function searchSymbols(query, market) {
-  if (!query || query.length < 1) return [];
+function normalizeSymbolInput(symbol) {
+  if (!symbol) return "";
+  let upper = symbol.toUpperCase().trim().replace(/\.(NS|BO|L|SI|SG)$/i, "");
+  // "SYRMA SGS" → ticker is SYRMA on NSE (not SYRMASGS)
+  if (upper.includes(" ")) upper = upper.split(/\s+/)[0];
+  return upper;
+}
+
+function scoreSearchResult(result, query) {
+  const q = query.toLowerCase().trim();
+  const words = q.split(/\s+/).filter(Boolean);
+  let score = 0;
+  const name = (result.name || "").toLowerCase();
+  const sym = (result.symbol || "").toLowerCase();
+  if (name.includes(q)) score += 20;
+  for (const w of words) {
+    if (w.length >= 2 && name.includes(w)) score += 8;
+    if (sym.includes(w)) score += 5;
+  }
+  if (sym === q.replace(/\s/g, "")) score += 15;
+  return score;
+}
+
+async function searchSymbolsOnce(query, market) {
   const url = `https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=20&newsCount=0`;
   const res = await fetch(url, { headers: YAHOO_HEADERS });
   if (!res.ok) throw new Error("Symbol search failed");
@@ -185,7 +216,7 @@ async function searchSymbols(query, market) {
     );
   }
 
-  return quotes.slice(0, 10).map((q) => ({
+  return quotes.map((q) => ({
     symbol: cleanDisplaySymbol(q.symbol),
     yahooSymbol: q.symbol,
     name: q.longname || q.shortname || q.symbol,
@@ -193,6 +224,66 @@ async function searchSymbols(query, market) {
     exchangeLabel: q.exchDisp || q.exchange,
     currency: q.currency || (q.symbol.endsWith(".NS") || q.symbol.endsWith(".BO") ? "INR" : "USD"),
   }));
+}
+
+async function searchSymbols(query, market) {
+  if (!query || query.length < 1) return { results: [], hint: null };
+
+  const trimmed = query.trim();
+  const queries = [trimmed];
+  const firstWord = trimmed.split(/\s+/)[0];
+  const noSpaces = trimmed.replace(/\s+/g, "");
+
+  if (firstWord.length >= 2 && firstWord !== trimmed) queries.push(firstWord);
+  // Avoid searching SYRMASGS — only add noSpaces if it differs and isn't a glued name
+  if (noSpaces !== trimmed && noSpaces.length >= 2 && !trimmed.includes(" ")) {
+    queries.push(noSpaces);
+  }
+
+  const seen = new Set();
+  const all = [];
+  for (const q of [...new Set(queries)]) {
+    const batch = await searchSymbolsOnce(q, market);
+    for (const r of batch) {
+      if (!seen.has(r.yahooSymbol)) {
+        seen.add(r.yahooSymbol);
+        all.push(r);
+      }
+    }
+  }
+
+  all.sort((a, b) => scoreSearchResult(b, trimmed) - scoreSearchResult(a, trimmed));
+
+  let hint = null;
+  if (all.length === 0 && market === "foreign") {
+    const indian = await searchSymbolsOnce(trimmed, "indian");
+    if (!indian.length && firstWord !== trimmed) {
+      const more = await searchSymbolsOnce(firstWord, "indian");
+      if (more.length) {
+        hint = `"${more[0].name}" is an Indian stock (ticker: ${more[0].symbol}). Switch category to Indian Equity.`;
+      }
+    } else if (indian.length) {
+      hint = `"${indian[0].name}" is an Indian stock (ticker: ${indian[0].symbol}). Switch category to Indian Equity.`;
+    }
+  }
+
+  return { results: all.slice(0, 10), hint };
+}
+
+async function resolveEquitySymbol(symbol, category, existingYahoo) {
+  if (existingYahoo) return { yahooSymbol: existingYahoo, symbol: normalizeSymbolInput(symbol) };
+  const market = category === "EQUITY_INDIAN" ? "indian" : "foreign";
+  const { results } = await searchSymbols(symbol, market);
+  if (results.length) {
+    return {
+      symbol: results[0].symbol,
+      yahooSymbol: results[0].yahooSymbol,
+      exchange: results[0].exchange,
+      currency: results[0].currency,
+      name: results[0].name,
+    };
+  }
+  return { symbol: normalizeSymbolInput(symbol), yahooSymbol: null };
 }
 
 function buildSummary(assets, rates, appConfig) {
@@ -263,8 +354,8 @@ async function handleApi(req, res, url, query) {
   if (req.method === "GET" && url === "/api/search") {
     const q = query.q || "";
     const market = query.market || "";
-    const results = await searchSymbols(q, market);
-    return send(res, 200, results);
+    const { results, hint } = await searchSymbols(q, market);
+    return send(res, 200, { results, hint });
   }
   if (req.method === "GET" && url === "/api/config") {
     return send(res, 200, appConfig);
@@ -282,6 +373,17 @@ async function handleApi(req, res, url, query) {
     const body = await parseBody(req);
     const data = readData();
     const now = new Date().toISOString();
+
+    if ((body.category === "EQUITY_INDIAN" || body.category === "EQUITY_FOREIGN") && body.symbol) {
+      const resolved = await resolveEquitySymbol(body.symbol, body.category, body.yahooSymbol);
+      body.symbol = resolved.symbol || normalizeSymbolInput(body.symbol);
+      body.yahooSymbol = body.yahooSymbol || resolved.yahooSymbol;
+      if (!body.exchange && resolved.exchange) body.exchange = resolved.exchange;
+      if (resolved.currency && body.currency === "INR" && body.category === "EQUITY_FOREIGN") {
+        body.currency = resolved.currency;
+      }
+    }
+
     const asset = {
       id: randomUUID(),
       name: body.name,
@@ -359,7 +461,7 @@ async function handleApi(req, res, url, query) {
     for (const asset of targets) {
       try {
         const { price: currentPrice, currency: priceCurrency } = await fetchStockPrice(
-          asset.symbol, asset.exchange, asset.yahooSymbol
+          asset.symbol, asset.exchange, asset.yahooSymbol, asset.category
         );
         const newValue = calculateEquityValue({ ...asset, currentPrice });
         asset.currentPrice = currentPrice;

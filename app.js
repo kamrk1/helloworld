@@ -230,7 +230,8 @@ function readForm() {
     if (cat === "BANK_ACCOUNT") body.accountType = form.accountType.value || null;
   }
   if (cat === "EQUITY_INDIAN" || cat === "EQUITY_FOREIGN") {
-    body.symbol = form.symbol.value.toUpperCase().replace(/\.(NS|BO|L|SI|SG)$/i, "");
+    const rawSymbol = form.symbol.value.toUpperCase().trim();
+    body.symbol = rawSymbol.replace(/\.(NS|BO|L|SI|SG)$/i, "");
     body.yahooSymbol = $("#yahooSymbolInput").value || null;
     body.quantity = parseFloat(form.quantity.value) || 0;
     body.purchasePrice = form.purchasePrice.value ? parseFloat(form.purchasePrice.value) : null;
@@ -347,18 +348,21 @@ async function searchSymbols(query) {
   if (!market || query.length < 1) { hideSuggestions(); return; }
 
   try {
-    const results = await api(`/api/search?q=${encodeURIComponent(query)}&market=${market}`);
+    const data = await api(`/api/search?q=${encodeURIComponent(query)}&market=${market}`);
+    const results = data.results || data; // backward compat
+    const hint = data.hint || null;
     lastSearchResults = results;
     const ul = $("#symbolSuggestions");
+
     if (!results.length) {
-      ul.innerHTML = `<li class="no-results">No matches — try full name or ticker</li>`;
+      ul.innerHTML = `<li class="no-results">${hint ? esc(hint) : "No matches — try company name (e.g. syrma sgs) or ticker (SYRMA). Use Indian Equity for NSE/BSE stocks."}</li>`;
       ul.hidden = false;
       return;
     }
     ul.innerHTML = results.map((r, i) => `
       <li data-idx="${i}">
-        <div class="suggestion-symbol">${esc(r.symbol)} <span style="font-weight:400;color:#94a3b8">${esc(r.yahooSymbol)}</span></div>
         <div class="suggestion-name">${esc(r.name)}</div>
+        <div class="suggestion-symbol">Ticker: <strong>${esc(r.symbol)}</strong> · ${esc(r.yahooSymbol)}</div>
         <div class="suggestion-meta">${esc(r.exchangeLabel || r.exchange)} · ${esc(r.currency)}</div>
       </li>`).join("");
     ul.hidden = false;

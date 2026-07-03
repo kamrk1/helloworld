@@ -171,9 +171,11 @@ h1 { font-size: 1.35rem; font-weight: 700; }
 }
 .suggestions li:last-child { border-bottom: none; }
 .suggestions li:hover, .suggestions li.active { background: #f8fafc; }
-.suggestion-symbol { font-weight: 700; color: var(--text); }
-.suggestion-name { color: var(--muted); font-size: .75rem; margin-top: 2px; }
+.suggestion-name { font-weight: 600; color: var(--text); font-size: .85rem; }
+.suggestion-symbol { color: var(--muted); font-size: .78rem; margin-top: 3px; }
 .suggestion-meta { font-size: .7rem; color: #94a3b8; margin-top: 2px; }
+.suggestions .no-results { cursor: default; color: var(--muted); font-size: .78rem; line-height: 1.4; }
+.suggestions .no-results:hover { background: #fff; }
 
 /* Toast */
 .toast {
