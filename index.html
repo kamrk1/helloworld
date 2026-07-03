@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Net Worth Calculator</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="header-left">
+        <div class="logo">₹</div>
+        <div>
+          <h1>Net Worth Calculator</h1>
+          <p class="subtitle">Cash · Equities · Savings · Bank · PF</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="btnRevalue" class="btn btn-secondary" hidden>↻ Revalue Equities</button>
+        <button id="btnAdd" class="btn btn-primary">+ Add Asset</button>
+      </div>
+    </header>
+
+    <section id="hero" class="hero">
+      <p class="hero-label">Total Net Worth</p>
+      <p id="totalValue" class="hero-value">—</p>
+      <p id="heroMeta" class="hero-meta"></p>
+    </section>
+
+    <section id="categories" class="categories"></section>
+
+    <section class="assets-section">
+      <div class="section-header">
+        <h2>All Assets</h2>
+        <div id="filters" class="filters"></div>
+      </div>
+      <div id="assetList"></div>
+    </section>
+  </div>
+
+  <!-- Modal -->
+  <div id="modal" class="modal" hidden>
+    <div class="modal-backdrop"></div>
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2 id="modalTitle">Add Asset</h2>
+        <button id="btnClose" class="btn-icon">✕</button>
+      </div>
+      <form id="assetForm" class="modal-body">
+        <div class="field">
+          <label>Name *</label>
+          <input name="name" required placeholder="e.g. HDFC Savings, Reliance shares" />
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Category *</label>
+            <select name="category" id="categorySelect"></select>
+          </div>
+          <div class="field">
+            <label>Currency</label>
+            <select name="currency" id="currencySelect"></select>
+          </div>
+        </div>
+
+        <!-- Simple value fields -->
+        <div id="fieldsSimple">
+          <div class="field">
+            <label>Amount *</label>
+            <input name="value" type="number" min="0" step="0.01" />
+          </div>
+          <div class="field" id="bankNameField">
+            <label>Bank Name</label>
+            <input name="bankName" placeholder="e.g. HDFC Bank" />
+          </div>
+          <div class="field" id="accountTypeField" hidden>
+            <label>Account Type *</label>
+            <select name="accountType" id="accountTypeSelect"></select>
+          </div>
+        </div>
+
+        <!-- Equity fields -->
+        <div id="fieldsEquity" hidden>
+          <div class="field-row">
+            <div class="field">
+              <label>Symbol *</label>
+              <input name="symbol" placeholder="e.g. RELIANCE, AAPL" />
+            </div>
+            <div class="field">
+              <label>Exchange</label>
+              <select name="exchange" id="exchangeSelect"></select>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>Quantity *</label>
+              <input name="quantity" type="number" min="0" step="any" />
+            </div>
+            <div class="field">
+              <label>Fees</label>
+              <input name="fees" type="number" min="0" step="0.01" value="0" />
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>Purchase Price</label>
+              <input name="purchasePrice" type="number" min="0" step="0.01" />
+            </div>
+            <div class="field">
+              <label>Current Price</label>
+              <input name="currentPrice" type="number" min="0" step="0.01" placeholder="Or use Revalue" />
+            </div>
+          </div>
+          <p class="hint">Use "Revalue Equities" to fetch live prices from Yahoo Finance.</p>
+        </div>
+
+        <!-- PF fields -->
+        <div id="fieldsPf" hidden>
+          <div class="field">
+            <label>Principal *</label>
+            <input name="principal" type="number" min="0" step="0.01" />
+          </div>
+          <div class="field">
+            <label>Annual Interest Rate (%) *</label>
+            <input name="interestRate" type="number" min="0" max="100" step="0.01" placeholder="e.g. 8.15 for EPF" />
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>Start Date</label>
+              <input name="startDate" type="date" />
+            </div>
+            <div class="field">
+              <label>Monthly Contribution</label>
+              <input name="monthlyContribution" type="number" min="0" step="0.01" />
+            </div>
+          </div>
+          <p class="hint">PF value is auto-calculated (MTM) using compound monthly interest.</p>
+        </div>
+
+        <div class="field">
+          <label>Notes</label>
+          <textarea name="notes" rows="2" placeholder="Optional"></textarea>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" id="btnCancel" class="btn btn-secondary">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btnSave">Add Asset</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+{
+  "baseCurrency": "INR",
+  "categoryLabels": {
+    "CASH": "Cash",
+    "SAVINGS": "Savings",
+    "BANK_ACCOUNT": "Bank Accounts",
+    "PF": "Provident Fund (PF)",
+    "EQUITY_INDIAN": "Indian Equity",
+    "EQUITY_FOREIGN": "Foreign Equity"
+  },
+  "bankAccountLabels": {
+    "SAVINGS": "Savings",
+    "CURRENT": "Current",
+    "FIXED_DEPOSIT": "Fixed Deposit (FD)",
+    "RECURRING_DEPOSIT": "Recurring Deposit (RD)",
+    "NRE": "NRE Account",
+    "NRO": "NRO Account",
+    "OTHER": "Other"
+  },
+  "exchangeLabels": {
+    "NSE": "NSE (India)",
+    "BSE": "BSE (India)",
+    "NYSE": "NYSE",
+    "NASDAQ": "NASDAQ",
+    "LSE": "London (LSE)",
+    "OTHER": "Other"
+  },
+  "currencies": ["INR", "USD", "EUR", "GBP", "SGD", "AED", "JPY"]
+}
