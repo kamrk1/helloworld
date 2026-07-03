@@ -1,15 +1,15 @@
-/* Net Worth Calculator – client app */
+/* Net Worth Calculator – PWA client */
 
 let config = {};
 let assets = [];
 let summary = null;
 let editingId = null;
 let activeFilter = "ALL";
+let useServerStorage = false;
 
 const $ = (sel) => document.querySelector(sel);
-const $$ = (sel) => document.querySelectorAll(sel);
 
-// ── API ───────────────────────────────────────────────────────
+// ── API (Yahoo search/revalue via server or Netlify Functions) ──
 
 async function api(path, opts = {}) {
   const res = await fetch(path, {
@@ -19,6 +19,13 @@ async function api(path, opts = {}) {
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Request failed");
   return data;
+}
+
+async function detectStorageMode() {
+  try {
+    const res = await fetch("/api/health");
+    if (res.ok) useServerStorage = true;
+  } catch { useServerStorage = false; }
 }
 
 // ── Formatting ────────────────────────────────────────────────
@@ -48,7 +55,8 @@ function toast(msg) {
 function renderHero() {
   if (!summary) return;
   $("#totalValue").textContent = fmt(summary.totalInr);
-  $("#heroMeta").textContent = `${assets.length} assets · Updated ${new Date(summary.lastUpdated).toLocaleString("en-IN")} · Base: INR`;
+  const storage = useServerStorage ? "Server storage" : "Saved on this device";
+  $("#heroMeta").textContent = `${assets.length} assets · Updated ${new Date(summary.lastUpdated).toLocaleString("en-IN")} · INR · ${storage}`;
 }
 
 function renderCategories() {
@@ -253,11 +261,12 @@ function readForm() {
 // ── Actions ───────────────────────────────────────────────────
 
 async function refresh() {
-  [config, assets, summary] = await Promise.all([
-    api("/api/config"),
-    api("/api/assets"),
-    api("/api/summary"),
-  ]);
+  if (useServerStorage) {
+    [assets, summary] = await Promise.all([api("/api/assets"), api("/api/summary")]);
+  } else {
+    assets = Storage.getAssets().map((a) => ({ ...a, computedValue: Calc.getAssetValue(a) }));
+    summary = await Calc.buildSummary(assets, config);
+  }
 
   const hasEquity = assets.some((a) => a.category === "EQUITY_INDIAN" || a.category === "EQUITY_FOREIGN");
   $("#btnRevalue").hidden = !hasEquity;
@@ -272,8 +281,13 @@ async function saveAsset(e) {
   e.preventDefault();
   const body = readForm();
   try {
-    if (editingId) await api(`/api/assets/${editingId}`, { method: "PUT", body: JSON.stringify(body) });
-    else await api("/api/assets", { method: "POST", body: JSON.stringify(body) });
+    if (useServerStorage) {
+      if (editingId) await api(`/api/assets/${editingId}`, { method: "PUT", body: JSON.stringify(body) });
+      else await api("/api/assets", { method: "POST", body: JSON.stringify(body) });
+    } else {
+      if (editingId) Storage.update(editingId, body);
+      else Storage.create(body);
+    }
     closeModal();
     await refresh();
     toast(editingId ? "Asset updated" : "Asset added");
@@ -289,37 +303,73 @@ window.editAsset = async function (id) {
 
 window.deleteAsset = async function (id) {
   if (!confirm("Delete this asset?")) return;
-  await api(`/api/assets/${id}`, { method: "DELETE" });
+  if (useServerStorage) await api(`/api/assets/${id}`, { method: "DELETE" });
+  else Storage.delete(id);
   await refresh();
   toast("Asset deleted");
 };
 
+async function applyRevalue(data) {
+  if (!useServerStorage) {
+    for (const r of data.results || []) {
+      if (!r.success) continue;
+      Storage.update(r.id, {
+        currentPrice: r.currentPrice,
+        value: r.newValue,
+        lastRevaluedAt: new Date().toISOString(),
+      });
+    }
+  }
+  await refresh();
+  const failed = data.results?.filter((r) => !r.success);
+  if (failed?.length) {
+    toast(`${data.message}. Failed: ${failed.map((f) => `${f.symbol} (${f.error})`).join("; ")}`);
+  } else {
+    toast(data.message);
+  }
+}
+
 window.revalueOne = async function (id) {
   try {
-    const data = await api("/api/revalue", { method: "POST", body: JSON.stringify({ assetIds: [id] }) });
-    await refresh();
-    const failed = data.results?.filter((r) => !r.success);
-    if (failed?.length) {
-      toast(`${data.message} — ${failed[0].error}`);
-    } else {
-      toast(data.message);
-    }
+    const payload = useServerStorage
+      ? { assetIds: [id] }
+      : { assetIds: [id], assets };
+    const data = await api("/api/revalue", { method: "POST", body: JSON.stringify(payload) });
+    await applyRevalue(data);
   } catch (err) { toast(err.message); }
 };
 
 async function revalueAll() {
   $("#btnRevalue").disabled = true;
   try {
-    const data = await api("/api/revalue", { method: "POST", body: JSON.stringify({}) });
-    await refresh();
-    const failed = data.results?.filter((r) => !r.success);
-    if (failed?.length) {
-      toast(`${data.message}. Failed: ${failed.map((f) => f.symbol + " (" + f.error + ")").join("; ")}`);
-    } else {
-      toast(data.message);
-    }
+    const payload = useServerStorage ? {} : { assets };
+    const data = await api("/api/revalue", { method: "POST", body: JSON.stringify(payload) });
+    await applyRevalue(data);
   } catch (err) { toast(err.message); }
   finally { $("#btnRevalue").disabled = false; }
+}
+
+function exportBackup() {
+  const json = useServerStorage ? null : Storage.exportJson();
+  if (!json && useServerStorage) { toast("Export available in app mode (Netlify/local)"); return; }
+  const blob = new Blob([json], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `networth-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  toast("Backup downloaded");
+}
+
+function importBackup(file) {
+  const reader = new FileReader();
+  reader.onload = async () => {
+    try {
+      const count = Storage.importJson(reader.result);
+      await refresh();
+      toast(`Imported ${count} assets`);
+    } catch (err) { toast(err.message); }
+  };
+  reader.readAsText(file);
 }
 
 // ── Symbol autocomplete ───────────────────────────────────────
@@ -445,6 +495,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   $(".modal-backdrop").onclick = closeModal;
   $("#assetForm").onsubmit = saveAsset;
   $("#btnRevalue").onclick = revalueAll;
+  $("#btnExport").onclick = exportBackup;
+  $("#btnImport").onclick = () => $("#importFile").click();
+  $("#importFile").onchange = (e) => { if (e.target.files[0]) importBackup(e.target.files[0]); e.target.value = ""; };
   $("#categorySelect").onchange = (e) => {
     showCategoryFields(e.target.value);
     $("#symbolInput").value = "";
@@ -455,7 +508,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   setupSymbolAutocomplete();
 
   try {
-    config = await api("/api/config");
+    await detectStorageMode();
+    config = useServerStorage ? await api("/api/config") : await fetch("/config.json").then((r) => r.json());
     populateSelects();
     await refresh();
   } catch (err) {

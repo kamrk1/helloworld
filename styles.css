@@ -55,7 +55,7 @@ h1 { font-size: 1.35rem; font-weight: 700; }
   background: #fff; border: 1px solid var(--border); cursor: pointer;
 }
 .btn-sm:hover { background: #f8fafc; }
-.btn-danger:hover { color: #dc2626; border-color: #fecaca; background: #fef2f2; }
+.btn-icon-only { padding: 10px 12px; min-width: 40px; }
 
 /* Hero */
 .hero {
