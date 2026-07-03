@@ -53,6 +53,7 @@ const Calc = {
     }
 
     const sources = [
+      "/api/fx-rates",
       "https://open.er-api.com/v6/latest/INR",
       "https://api.exchangerate-api.com/v4/latest/INR",
     ];
@@ -62,6 +63,8 @@ const Calc = {
         const res = await fetch(url);
         if (!res.ok) continue;
         const data = await res.json();
+        // /api/fx-rates returns rates object directly
+        if (data.INR === 1 && data.SGD) return data;
         if (data.result && data.result !== "success") continue;
         return await parseInrBase(data);
       } catch { /* try next source */ }

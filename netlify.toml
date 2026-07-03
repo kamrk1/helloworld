@@ -3,6 +3,11 @@
   functions = "netlify/functions"
 
 [[redirects]]
+  from = "/api/fx-rates"
+  to = "/.netlify/functions/fx-rates"
+  status = 200
+
+[[redirects]]
   from = "/api/search"
   to = "/.netlify/functions/search"
   status = 200

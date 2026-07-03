@@ -71,6 +71,8 @@ function mergeAssetsWithInr(assetList, summaryData) {
     computedValueInr: inrMap.get(a.id) ?? (a.currency === "INR" ? Calc.getAssetValue(a) : null),
   }));
 }
+
+function toast(msg) {
   const el = $("#toast");
   el.textContent = msg;
   el.hidden = false;
@@ -301,6 +303,17 @@ async function refresh() {
     const rawAssets = Storage.getAssets();
     summary = await Calc.buildSummary(rawAssets, config);
     assets = mergeAssetsWithInr(rawAssets, summary);
+    // Ensure foreign assets always have INR value
+    const rates = await Calc.fetchExchangeRates();
+    assets = assets.map((a) => {
+      if (a.computedValueInr != null) return a;
+      const val = a.computedValue ?? Calc.getAssetValue(a);
+      return { ...a, computedValueInr: Calc.convertToInr(val, a.currency, rates) };
+    });
+    // Recompute summary total with same rates
+    let totalInr = 0;
+    for (const a of assets) totalInr += a.computedValueInr ?? 0;
+    summary = { ...summary, totalInr };
   }
 
   const hasEquity = assets.some((a) => a.category === "EQUITY_INDIAN" || a.category === "EQUITY_FOREIGN");

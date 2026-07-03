@@ -417,6 +417,11 @@ function serveStatic(filePath, res) {
 async function handleApi(req, res, url, query) {
   const appConfig = readConfig();
 
+  if (req.method === "GET" && url === "/api/fx-rates") {
+    const rates = await fetchExchangeRates();
+    return send(res, 200, rates);
+  }
+
   if (req.method === "GET" && url === "/api/health") {
     return send(res, 200, { status: "ok", dataFile: DATA_FILE });
   }
