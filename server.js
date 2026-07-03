@@ -90,21 +90,109 @@ async function fetchExchangeRates() {
 }
 
 function buildYahooSymbol(symbol, exchange) {
-  const upper = symbol.toUpperCase().trim();
+  if (!symbol) return "";
+  let upper = symbol.toUpperCase().trim();
+  // Fix common wrong suffixes
+  if (upper.endsWith(".SG")) upper = upper.replace(/\.SG$/, ".SI");
   if (upper.includes(".")) return upper;
-  if (exchange === "NSE") return `${upper}.NS`;
-  if (exchange === "BSE") return `${upper}.BO`;
-  return upper;
+
+  switch (exchange) {
+    case "NSE": return `${upper}.NS`;
+    case "BSE": return `${upper}.BO`;
+    case "LSE": return `${upper}.L`;
+    case "SGX": return `${upper}.SI`;
+    default: return upper;
+  }
 }
 
-async function fetchStockPrice(yahooSymbol) {
+function yahooSymbolCandidates(symbol, exchange, storedYahoo) {
+  const built = buildYahooSymbol(symbol, exchange);
+  const raw = symbol?.toUpperCase().trim();
+  const fixed = raw?.endsWith(".SG") ? raw.replace(/\.SG$/, ".SI") : raw;
+  return [...new Set([storedYahoo, built, fixed, raw].filter(Boolean))];
+}
+
+const YAHOO_HEADERS = {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+  Accept: "application/json",
+};
+
+async function fetchStockPriceOnce(yahooSymbol) {
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?interval=1d&range=1d`;
-  const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 NetWorthCalculator/1.0" } });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const res = await fetch(url, { headers: YAHOO_HEADERS });
+  if (!res.ok) throw new Error(`HTTP ${res.status} for ${yahooSymbol}`);
   const data = await res.json();
-  const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
-  if (typeof price !== "number" || price <= 0) throw new Error("No price returned");
-  return price;
+  if (data?.chart?.error) throw new Error(data.chart.error.description || "Chart error");
+  const result = data?.chart?.result?.[0];
+  if (!result) throw new Error(`No data for ${yahooSymbol}`);
+  const price = result.meta?.regularMarketPrice ?? result.meta?.previousClose;
+  if (typeof price !== "number" || price <= 0) throw new Error(`No price for ${yahooSymbol}`);
+  return { price, currency: result.meta?.currency || "USD" };
+}
+
+async function fetchStockPrice(symbol, exchange, storedYahoo) {
+  const candidates = yahooSymbolCandidates(symbol, exchange, storedYahoo);
+  const errors = [];
+  for (const sym of candidates) {
+    try {
+      return await fetchStockPriceOnce(sym);
+    } catch (err) {
+      errors.push(`${sym}: ${err.message}`);
+    }
+  }
+  throw new Error(`Yahoo Finance: could not price ${symbol} (tried ${candidates.join(", ")})`);
+}
+
+function mapYahooExchange(quote) {
+  const sym = quote.symbol || "";
+  const exch = (quote.exchange || quote.exchDisp || "").toUpperCase();
+  if (sym.endsWith(".NS") || exch.includes("NSE") || exch === "NSI") return "NSE";
+  if (sym.endsWith(".BO") || exch.includes("BOM") || exch === "BSE") return "BSE";
+  if (sym.endsWith(".L") || exch.includes("LSE") || exch === "LON") return "LSE";
+  if (sym.endsWith(".SI") || exch.includes("SGX") || exch === "SES") return "SGX";
+  if (exch.includes("NMS") || exch.includes("NASDAQ")) return "NASDAQ";
+  if (exch.includes("NYQ") || exch.includes("NYSE")) return "NYSE";
+  return "OTHER";
+}
+
+function cleanDisplaySymbol(yahooSymbol) {
+  return yahooSymbol.replace(/\.(NS|BO|L|SI|SG)$/i, "");
+}
+
+async function searchSymbols(query, market) {
+  if (!query || query.length < 1) return [];
+  const url = `https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=20&newsCount=0`;
+  const res = await fetch(url, { headers: YAHOO_HEADERS });
+  if (!res.ok) throw new Error("Symbol search failed");
+  const data = await res.json();
+  let quotes = (data.quotes || []).filter((q) => q.quoteType === "EQUITY" && q.symbol);
+
+  if (market === "indian") {
+    quotes = quotes.filter(
+      (q) =>
+        q.symbol.endsWith(".NS") ||
+        q.symbol.endsWith(".BO") ||
+        ["NSI", "BSE"].includes(q.exchange) ||
+        /NSE|Bombay|BSE/i.test(q.exchDisp || "")
+    );
+  } else if (market === "foreign") {
+    quotes = quotes.filter(
+      (q) =>
+        !q.symbol.endsWith(".NS") &&
+        !q.symbol.endsWith(".BO") &&
+        !["NSI", "BSE"].includes(q.exchange) &&
+        !/NSE|Bombay|BSE/i.test(q.exchDisp || "")
+    );
+  }
+
+  return quotes.slice(0, 10).map((q) => ({
+    symbol: cleanDisplaySymbol(q.symbol),
+    yahooSymbol: q.symbol,
+    name: q.longname || q.shortname || q.symbol,
+    exchange: mapYahooExchange(q),
+    exchangeLabel: q.exchDisp || q.exchange,
+    currency: q.currency || (q.symbol.endsWith(".NS") || q.symbol.endsWith(".BO") ? "INR" : "USD"),
+  }));
 }
 
 function buildSummary(assets, rates, appConfig) {
@@ -168,10 +256,16 @@ function serveStatic(filePath, res) {
 
 // ── Router ────────────────────────────────────────────────────
 
-async function handleApi(req, res, url) {
+async function handleApi(req, res, url, query) {
   const appConfig = readConfig();
 
-  // GET /api/config
+  // GET /api/search?q=&market=indian|foreign
+  if (req.method === "GET" && url === "/api/search") {
+    const q = query.q || "";
+    const market = query.market || "";
+    const results = await searchSymbols(q, market);
+    return send(res, 200, results);
+  }
   if (req.method === "GET" && url === "/api/config") {
     return send(res, 200, appConfig);
   }
@@ -198,6 +292,7 @@ async function handleApi(req, res, url) {
       bankName: body.bankName || null,
       accountType: body.accountType || null,
       symbol: body.symbol || null,
+      yahooSymbol: body.yahooSymbol || null,
       quantity: body.quantity ?? null,
       purchasePrice: body.purchasePrice ?? null,
       currentPrice: body.currentPrice ?? null,
@@ -263,16 +358,22 @@ async function handleApi(req, res, url) {
     const results = [];
     for (const asset of targets) {
       try {
-        const yahooSymbol = buildYahooSymbol(asset.symbol, asset.exchange);
-        const currentPrice = await fetchStockPrice(yahooSymbol);
+        const { price: currentPrice, currency: priceCurrency } = await fetchStockPrice(
+          asset.symbol, asset.exchange, asset.yahooSymbol
+        );
         const newValue = calculateEquityValue({ ...asset, currentPrice });
         asset.currentPrice = currentPrice;
         asset.value = newValue;
+        asset.yahooSymbol = asset.yahooSymbol || buildYahooSymbol(asset.symbol, asset.exchange);
+        if (!asset.currency || asset.currency === "INR") {
+          // keep user-set currency; only hint if unset on foreign
+        }
         asset.lastRevaluedAt = new Date().toISOString();
         asset.updatedAt = new Date().toISOString();
         results.push({
           id: asset.id, name: asset.name, symbol: asset.symbol,
-          currentPrice, newValue, success: true,
+          yahooSymbol: asset.yahooSymbol,
+          currentPrice, priceCurrency, newValue, success: true,
         });
       } catch (err) {
         results.push({
@@ -295,7 +396,9 @@ async function handleApi(req, res, url) {
 // ── Server ────────────────────────────────────────────────────
 
 const server = http.createServer(async (req, res) => {
-  const url = req.url.split("?")[0];
+  const parsed = new URL(req.url, `http://localhost:${PORT}`);
+  const url = parsed.pathname;
+  const query = Object.fromEntries(parsed.searchParams);
 
   if (req.method === "OPTIONS") {
     res.writeHead(204, {
@@ -308,7 +411,7 @@ const server = http.createServer(async (req, res) => {
 
   if (url.startsWith("/api/")) {
     try {
-      await handleApi(req, res, url);
+      await handleApi(req, res, url, query);
     } catch (err) {
       console.error(err);
       send(res, 500, { error: err.message });

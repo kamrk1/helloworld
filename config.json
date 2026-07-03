@@ -23,6 +23,7 @@
     "NYSE": "NYSE",
     "NASDAQ": "NASDAQ",
     "LSE": "London (LSE)",
+    "SGX": "Singapore (SGX)",
     "OTHER": "Other"
   },
   "currencies": ["INR", "USD", "EUR", "GBP", "SGD", "AED", "JPY"]

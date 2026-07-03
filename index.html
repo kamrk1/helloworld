@@ -82,9 +82,11 @@
         <!-- Equity fields -->
         <div id="fieldsEquity" hidden>
           <div class="field-row">
-            <div class="field">
-              <label>Symbol *</label>
-              <input name="symbol" placeholder="e.g. RELIANCE, AAPL" />
+            <div class="field autocomplete-wrap">
+              <label>Symbol * <span class="label-hint">type to search</span></label>
+              <input name="symbol" id="symbolInput" autocomplete="off" placeholder="e.g. RELIANCE, AAPL, DBS" />
+              <input type="hidden" name="yahooSymbol" id="yahooSymbolInput" />
+              <ul id="symbolSuggestions" class="suggestions" hidden></ul>
             </div>
             <div class="field">
               <label>Exchange</label>
@@ -111,7 +113,7 @@
               <input name="currentPrice" type="number" min="0" step="0.01" placeholder="Or use Revalue" />
             </div>
           </div>
-          <p class="hint">Use "Revalue Equities" to fetch live prices from Yahoo Finance.</p>
+          <p class="hint">Type a company name or ticker — pick from suggestions. Prices fetched live from Yahoo Finance on Revalue.</p>
         </div>
 
         <!-- PF fields -->

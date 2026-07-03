@@ -1,7 +1,56 @@
 {
   "config": {
     "baseCurrency": "INR",
-    "lastUpdated": null
+    "lastUpdated": "2026-07-03T18:04:15.666Z"
   },
-  "assets": []
+  "assets": [
+    {
+      "id": "fae31ded-1008-4209-8a89-7d3a0804db3a",
+      "name": "Apple",
+      "category": "EQUITY_FOREIGN",
+      "currency": "USD",
+      "notes": null,
+      "value": 3086.3,
+      "bankName": null,
+      "accountType": null,
+      "symbol": "AAPL",
+      "quantity": 10,
+      "purchasePrice": null,
+      "currentPrice": 308.63,
+      "fees": 0,
+      "exchange": "NASDAQ",
+      "lastRevaluedAt": "2026-07-03T18:04:15.591Z",
+      "principal": null,
+      "interestRate": null,
+      "startDate": null,
+      "monthlyContribution": null,
+      "createdAt": "2026-07-03T18:02:28.930Z",
+      "updatedAt": "2026-07-03T18:04:15.591Z",
+      "yahooSymbol": "AAPL"
+    },
+    {
+      "id": "327c676b-3cfb-4ecb-b510-78f7c9a89efa",
+      "name": "dbs ",
+      "category": "EQUITY_FOREIGN",
+      "currency": "SGD",
+      "notes": null,
+      "value": 40990.64000000001,
+      "bankName": null,
+      "accountType": null,
+      "symbol": "D05.SG",
+      "quantity": 614,
+      "purchasePrice": null,
+      "currentPrice": 66.76,
+      "fees": 0,
+      "exchange": "OTHER",
+      "lastRevaluedAt": "2026-07-03T18:04:15.666Z",
+      "principal": null,
+      "interestRate": null,
+      "startDate": null,
+      "monthlyContribution": null,
+      "createdAt": "2026-07-03T18:00:26.741Z",
+      "updatedAt": "2026-07-03T18:04:15.666Z",
+      "yahooSymbol": "D05.SI"
+    }
+  ]
 }

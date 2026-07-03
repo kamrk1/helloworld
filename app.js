@@ -163,6 +163,27 @@ function showCategoryFields(cat) {
   $("#fieldsPf").hidden = !isPf;
   $("#bankNameField").hidden = !(isBank || isSavings);
   $("#accountTypeField").hidden = !isBank;
+
+  if (isEquity) {
+    const curSel = $("#currencySelect");
+    if (cat === "EQUITY_INDIAN") curSel.value = "INR";
+    else if (cat === "EQUITY_FOREIGN" && curSel.value === "INR") curSel.value = "USD";
+    filterExchangeOptions(cat);
+  }
+  hideSuggestions();
+}
+
+function filterExchangeOptions(cat) {
+  const exSel = $("#exchangeSelect");
+  const indian = ["NSE", "BSE"];
+  const foreign = ["NYSE", "NASDAQ", "LSE", "SGX", "OTHER"];
+  const allowed = cat === "EQUITY_INDIAN" ? indian : foreign;
+  for (const opt of exSel.options) {
+    opt.hidden = !allowed.includes(opt.value);
+  }
+  if (!allowed.includes(exSel.value)) {
+    exSel.value = cat === "EQUITY_INDIAN" ? "NSE" : "NASDAQ";
+  }
 }
 
 function openModal(asset) {
@@ -179,6 +200,9 @@ function openModal(asset) {
       if (input.type === "date" && v) input.value = v.slice(0, 10);
       else if (v != null) input.value = v;
     }
+    $("#yahooSymbolInput").value = asset.yahooSymbol || "";
+  } else {
+    $("#yahooSymbolInput").value = "";
   }
 
   showCategoryFields(form.category.value);
@@ -206,7 +230,8 @@ function readForm() {
     if (cat === "BANK_ACCOUNT") body.accountType = form.accountType.value || null;
   }
   if (cat === "EQUITY_INDIAN" || cat === "EQUITY_FOREIGN") {
-    body.symbol = form.symbol.value.toUpperCase();
+    body.symbol = form.symbol.value.toUpperCase().replace(/\.(NS|BO|L|SI|SG)$/i, "");
+    body.yahooSymbol = $("#yahooSymbolInput").value || null;
     body.quantity = parseFloat(form.quantity.value) || 0;
     body.purchasePrice = form.purchasePrice.value ? parseFloat(form.purchasePrice.value) : null;
     body.currentPrice = form.currentPrice.value ? parseFloat(form.currentPrice.value) : null;
@@ -272,7 +297,12 @@ window.revalueOne = async function (id) {
   try {
     const data = await api("/api/revalue", { method: "POST", body: JSON.stringify({ assetIds: [id] }) });
     await refresh();
-    toast(data.message);
+    const failed = data.results?.filter((r) => !r.success);
+    if (failed?.length) {
+      toast(`${data.message} — ${failed[0].error}`);
+    } else {
+      toast(data.message);
+    }
   } catch (err) { toast(err.message); }
 };
 
@@ -281,9 +311,112 @@ async function revalueAll() {
   try {
     const data = await api("/api/revalue", { method: "POST", body: JSON.stringify({}) });
     await refresh();
-    toast(data.message);
+    const failed = data.results?.filter((r) => !r.success);
+    if (failed?.length) {
+      toast(`${data.message}. Failed: ${failed.map((f) => f.symbol + " (" + f.error + ")").join("; ")}`);
+    } else {
+      toast(data.message);
+    }
   } catch (err) { toast(err.message); }
   finally { $("#btnRevalue").disabled = false; }
+}
+
+// ── Symbol autocomplete ───────────────────────────────────────
+
+let searchTimer = null;
+let activeSuggestion = -1;
+
+function hideSuggestions() {
+  const ul = $("#symbolSuggestions");
+  ul.hidden = true;
+  ul.innerHTML = "";
+  activeSuggestion = -1;
+}
+
+function getEquityMarket() {
+  const cat = $("#categorySelect").value;
+  if (cat === "EQUITY_INDIAN") return "indian";
+  if (cat === "EQUITY_FOREIGN") return "foreign";
+  return "";
+}
+
+let lastSearchResults = [];
+
+async function searchSymbols(query) {
+  const market = getEquityMarket();
+  if (!market || query.length < 1) { hideSuggestions(); return; }
+
+  try {
+    const results = await api(`/api/search?q=${encodeURIComponent(query)}&market=${market}`);
+    lastSearchResults = results;
+    const ul = $("#symbolSuggestions");
+    if (!results.length) {
+      ul.innerHTML = `<li class="no-results">No matches — try full name or ticker</li>`;
+      ul.hidden = false;
+      return;
+    }
+    ul.innerHTML = results.map((r, i) => `
+      <li data-idx="${i}">
+        <div class="suggestion-symbol">${esc(r.symbol)} <span style="font-weight:400;color:#94a3b8">${esc(r.yahooSymbol)}</span></div>
+        <div class="suggestion-name">${esc(r.name)}</div>
+        <div class="suggestion-meta">${esc(r.exchangeLabel || r.exchange)} · ${esc(r.currency)}</div>
+      </li>`).join("");
+    ul.hidden = false;
+
+    ul.querySelectorAll("li[data-idx]").forEach((li) => {
+      li.onclick = () => pickSuggestionResult(lastSearchResults[+li.dataset.idx]);
+    });
+  } catch {
+    hideSuggestions();
+  }
+}
+
+function pickSuggestionResult(r) {
+  const form = $("#assetForm");
+  form.symbol.value = r.symbol;
+  $("#yahooSymbolInput").value = r.yahooSymbol;
+  form.exchange.value = r.exchange;
+  if (!form.name.value || form.name.value.length < 2) form.name.value = r.name;
+  form.currency.value = r.currency;
+  hideSuggestions();
+}
+
+function setupSymbolAutocomplete() {
+  const input = $("#symbolInput");
+  const ul = $("#symbolSuggestions");
+
+  input.addEventListener("input", () => {
+    $("#yahooSymbolInput").value = "";
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => searchSymbols(input.value.trim()), 280);
+  });
+
+  input.addEventListener("focus", () => {
+    if (input.value.trim().length >= 1) searchSymbols(input.value.trim());
+  });
+
+  input.addEventListener("keydown", (e) => {
+    const items = ul.querySelectorAll("li[data-idx]");
+    if (!items.length || ul.hidden) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      activeSuggestion = Math.min(activeSuggestion + 1, items.length - 1);
+      items.forEach((li, i) => li.classList.toggle("active", i === activeSuggestion));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      activeSuggestion = Math.max(activeSuggestion - 1, 0);
+      items.forEach((li, i) => li.classList.toggle("active", i === activeSuggestion));
+    } else if (e.key === "Enter" && activeSuggestion >= 0) {
+      e.preventDefault();
+      pickSuggestionResult(lastSearchResults[activeSuggestion]);
+    } else if (e.key === "Escape") {
+      hideSuggestions();
+    }
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".autocomplete-wrap")) hideSuggestions();
+  });
 }
 
 // ── Init ──────────────────────────────────────────────────────
@@ -308,7 +441,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   $(".modal-backdrop").onclick = closeModal;
   $("#assetForm").onsubmit = saveAsset;
   $("#btnRevalue").onclick = revalueAll;
-  $("#categorySelect").onchange = (e) => showCategoryFields(e.target.value);
+  $("#categorySelect").onchange = (e) => {
+    showCategoryFields(e.target.value);
+    $("#symbolInput").value = "";
+    $("#yahooSymbolInput").value = "";
+    hideSuggestions();
+  };
+
+  setupSymbolAutocomplete();
 
   try {
     config = await api("/api/config");
