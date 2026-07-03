@@ -1,7 +1,7 @@
 {
   "config": {
     "baseCurrency": "INR",
-    "lastUpdated": "2026-07-03T18:17:53.774Z"
+    "lastUpdated": "2026-07-03T19:03:27.913Z"
   },
   "assets": [
     {
@@ -20,13 +20,13 @@
       "currentPrice": 1376,
       "fees": 0,
       "exchange": "NSE",
-      "lastRevaluedAt": "2026-07-03T18:17:53.266Z",
+      "lastRevaluedAt": "2026-07-03T19:01:57.955Z",
       "principal": null,
       "interestRate": null,
       "startDate": null,
       "monthlyContribution": null,
       "createdAt": "2026-07-03T18:16:16.358Z",
-      "updatedAt": "2026-07-03T18:17:53.266Z"
+      "updatedAt": "2026-07-03T19:01:57.955Z"
     },
     {
       "id": "a9074964-906a-4b37-8387-27847a0a77ab",
@@ -44,13 +44,13 @@
       "currentPrice": 1524.1,
       "fees": 0,
       "exchange": "NSE",
-      "lastRevaluedAt": "2026-07-03T18:17:53.319Z",
+      "lastRevaluedAt": "2026-07-03T19:01:57.959Z",
       "principal": null,
       "interestRate": null,
       "startDate": null,
       "monthlyContribution": null,
       "createdAt": "2026-07-03T18:12:15.048Z",
-      "updatedAt": "2026-07-03T18:17:53.319Z"
+      "updatedAt": "2026-07-03T19:01:57.959Z"
     },
     {
       "id": "c3bfa13f-768f-46a6-91b7-87d6a103c771",
@@ -68,13 +68,13 @@
       "currentPrice": 71.12,
       "fees": 0,
       "exchange": "NSE",
-      "lastRevaluedAt": "2026-07-03T18:17:53.601Z",
+      "lastRevaluedAt": "2026-07-03T19:01:57.963Z",
       "principal": null,
       "interestRate": null,
       "startDate": null,
       "monthlyContribution": null,
       "createdAt": "2026-07-03T18:10:17.758Z",
-      "updatedAt": "2026-07-03T18:17:53.601Z"
+      "updatedAt": "2026-07-03T19:01:57.963Z"
     },
     {
       "id": "a1c98162-e4dd-4c11-beb5-69413a084da9",
@@ -92,13 +92,13 @@
       "currentPrice": 450.05,
       "fees": 0,
       "exchange": "NSE",
-      "lastRevaluedAt": "2026-07-03T18:17:53.673Z",
+      "lastRevaluedAt": "2026-07-03T19:01:57.967Z",
       "principal": null,
       "interestRate": null,
       "startDate": null,
       "monthlyContribution": null,
       "createdAt": "2026-07-03T18:08:19.656Z",
-      "updatedAt": "2026-07-03T18:17:53.673Z"
+      "updatedAt": "2026-07-03T19:01:57.967Z"
     },
     {
       "id": "552ea295-7722-4b54-8cde-015e3770b0ff",
@@ -116,13 +116,13 @@
       "currentPrice": 3333.8,
       "fees": 0,
       "exchange": "NSE",
-      "lastRevaluedAt": "2026-07-03T18:17:53.703Z",
+      "lastRevaluedAt": "2026-07-03T19:01:57.981Z",
       "principal": null,
       "interestRate": null,
       "startDate": null,
       "monthlyContribution": null,
       "createdAt": "2026-07-03T18:07:09.707Z",
-      "updatedAt": "2026-07-03T18:17:53.703Z"
+      "updatedAt": "2026-07-03T19:01:57.981Z"
     },
     {
       "id": "5b8a6f3d-7196-40f8-9ade-2157de29cc75",
@@ -187,13 +187,13 @@
       "currentPrice": 66.76,
       "fees": 0,
       "exchange": "OTHER",
-      "lastRevaluedAt": "2026-07-03T18:17:53.774Z",
+      "lastRevaluedAt": "2026-07-03T19:01:57.986Z",
       "principal": null,
       "interestRate": null,
       "startDate": null,
       "monthlyContribution": null,
       "createdAt": "2026-07-03T18:00:26.741Z",
-      "updatedAt": "2026-07-03T18:17:53.774Z",
+      "updatedAt": "2026-07-03T19:01:57.986Z",
       "yahooSymbol": "D05.SI"
     }
   ]

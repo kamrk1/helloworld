@@ -102,26 +102,59 @@ async function fetchExchangeRates() {
   }
 }
 
-function buildYahooSymbol(symbol, exchange) {
-  if (!symbol) return "";
-  let upper = normalizeSymbolInput(symbol);
-  if (upper.endsWith(".SG")) upper = upper.replace(/\.SG$/, ".SI");
-  if (symbol.toUpperCase().includes(".") && symbol.includes(".")) return symbol.toUpperCase().trim();
+function isSgxTicker(bare) {
+  return /^[A-Z]\d{2}[A-Z]?$/i.test(bare);
+}
 
-  switch (exchange) {
-    case "NSE": return `${upper}.NS`;
-    case "BSE": return `${upper}.BO`;
-    case "LSE": return `${upper}.L`;
-    case "SGX": return `${upper}.SI`;
-    default: return upper;
+function inferExchangeFromSymbol(sym) {
+  if (!sym) return null;
+  const s = sym.toUpperCase().trim();
+  if (s.endsWith(".SI") || s.endsWith(".SG")) return "SGX";
+  if (s.endsWith(".NS")) return "NSE";
+  if (s.endsWith(".BO")) return "BSE";
+  if (s.endsWith(".L")) return "LSE";
+  if (isSgxTicker(normalizeSymbolInput(s))) return "SGX";
+  return null;
+}
+
+function toYahooSymbol(symbol, exchange) {
+  if (!symbol) return "";
+  const raw = symbol.toUpperCase().trim();
+  if (raw.endsWith(".SG")) return raw.replace(/\.SG$/, ".SI");
+  if (raw.includes(".")) return raw;
+  const bare = normalizeSymbolInput(raw);
+  const ex = exchange || inferExchangeFromSymbol(raw);
+  switch (ex) {
+    case "NSE": return `${bare}.NS`;
+    case "BSE": return `${bare}.BO`;
+    case "LSE": return `${bare}.L`;
+    case "SGX": return `${bare}.SI`;
+    default: return bare;
   }
 }
 
+function buildYahooSymbol(symbol, exchange) {
+  return toYahooSymbol(symbol, exchange);
+}
+
+function currencyForSymbol(yahooSymbol, fetched) {
+  if (yahooSymbol?.toUpperCase().endsWith(".SI")) return "SGD";
+  if (yahooSymbol?.toUpperCase().endsWith(".NS") || yahooSymbol?.toUpperCase().endsWith(".BO")) return "INR";
+  if (yahooSymbol?.toUpperCase().endsWith(".L")) return "GBP";
+  return fetched || "USD";
+}
+
 function yahooSymbolCandidates(symbol, exchange, storedYahoo) {
-  const built = buildYahooSymbol(symbol, exchange);
-  const raw = symbol?.toUpperCase().trim();
-  const fixed = raw?.endsWith(".SG") ? raw.replace(/\.SG$/, ".SI") : raw;
-  return [...new Set([storedYahoo, built, fixed, raw].filter(Boolean))];
+  const raw = (symbol || "").toUpperCase().trim();
+  const bare = normalizeSymbolInput(symbol);
+  const ex = exchange || inferExchangeFromSymbol(raw) || inferExchangeFromSymbol(storedYahoo);
+  const list = [];
+  if (storedYahoo) list.push(toYahooSymbol(storedYahoo, ex));
+  if (raw) list.push(toYahooSymbol(raw, ex));
+  if (raw.endsWith(".SG")) list.push(raw.replace(/\.SG$/, ".SI"));
+  if (bare && (ex === "SGX" || isSgxTicker(bare))) list.push(`${bare}.SI`);
+  if (bare) list.push(toYahooSymbol(bare, ex));
+  return [...new Set(list.filter(Boolean))];
 }
 
 const YAHOO_HEADERS = {
@@ -130,22 +163,24 @@ const YAHOO_HEADERS = {
 };
 
 async function fetchStockPriceOnce(yahooSymbol) {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?interval=1d&range=1d`;
+  const sym = yahooSymbol.endsWith(".SG") ? yahooSymbol.replace(/\.SG$/, ".SI") : yahooSymbol;
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=1d`;
   const res = await fetch(url, { headers: YAHOO_HEADERS });
-  if (!res.ok) throw new Error(`HTTP ${res.status} for ${yahooSymbol}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status} for ${sym}`);
   const data = await res.json();
   if (data?.chart?.error) throw new Error(data.chart.error.description || "Chart error");
   const result = data?.chart?.result?.[0];
-  if (!result) throw new Error(`No data for ${yahooSymbol}`);
+  if (!result) throw new Error(`No data for ${sym}`);
   const price = result.meta?.regularMarketPrice ?? result.meta?.previousClose;
-  if (typeof price !== "number" || price <= 0) throw new Error(`No price for ${yahooSymbol}`);
-  return { price, currency: result.meta?.currency || "USD" };
+  if (typeof price !== "number" || price <= 0) throw new Error(`No price for ${sym}`);
+  const currency = currencyForSymbol(sym, result.meta?.currency);
+  return { price, currency, yahooSymbol: sym };
 }
 
 async function fetchStockPrice(symbol, exchange, storedYahoo, category) {
-  let candidates = yahooSymbolCandidates(symbol, exchange, storedYahoo);
+  const ex = exchange || inferExchangeFromSymbol(symbol) || inferExchangeFromSymbol(storedYahoo);
+  let candidates = yahooSymbolCandidates(symbol, ex, storedYahoo);
 
-  // If direct tickers fail, resolve via Yahoo search (e.g. "SYRMA SGS", "SYRMASGS")
   if (category) {
     try {
       const resolved = await resolveEquitySymbol(symbol, category, storedYahoo);
@@ -153,14 +188,11 @@ async function fetchStockPrice(symbol, exchange, storedYahoo, category) {
     } catch { /* ignore */ }
   }
 
-  candidates = [...new Set(candidates.filter(Boolean))];
-  const errors = [];
+  candidates = [...new Set(candidates)];
   for (const sym of candidates) {
     try {
       return await fetchStockPriceOnce(sym);
-    } catch (err) {
-      errors.push(`${sym}: ${err.message}`);
-    }
+    } catch { /* try next */ }
   }
   throw new Error(`Yahoo Finance: could not price ${symbol} (tried ${candidates.join(", ")})`);
 }
@@ -171,7 +203,7 @@ function mapYahooExchange(quote) {
   if (sym.endsWith(".NS") || exch.includes("NSE") || exch === "NSI") return "NSE";
   if (sym.endsWith(".BO") || exch.includes("BOM") || exch === "BSE") return "BSE";
   if (sym.endsWith(".L") || exch.includes("LSE") || exch === "LON") return "LSE";
-  if (sym.endsWith(".SI") || exch.includes("SGX") || exch === "SES") return "SGX";
+  if (sym.endsWith(".SI") || sym.endsWith(".SG") || exch.includes("SGX") || exch === "SES" || exch.includes("SINGAPORE")) return "SGX";
   if (exch.includes("NMS") || exch.includes("NASDAQ")) return "NASDAQ";
   if (exch.includes("NYQ") || exch.includes("NYSE")) return "NYSE";
   return "OTHER";
@@ -229,14 +261,18 @@ async function searchSymbolsOnce(query, market) {
     );
   }
 
-  return quotes.map((q) => ({
-    symbol: cleanDisplaySymbol(q.symbol),
-    yahooSymbol: q.symbol,
-    name: q.longname || q.shortname || q.symbol,
-    exchange: mapYahooExchange(q),
-    exchangeLabel: q.exchDisp || q.exchange,
-    currency: q.currency || (q.symbol.endsWith(".NS") || q.symbol.endsWith(".BO") ? "INR" : "USD"),
-  }));
+  return quotes.map((q) => {
+    const yahooSymbol = q.symbol.endsWith(".SG") ? q.symbol.replace(/\.SG$/, ".SI") : q.symbol;
+    const exchange = mapYahooExchange({ ...q, symbol: yahooSymbol });
+    return {
+      symbol: cleanDisplaySymbol(yahooSymbol),
+      yahooSymbol,
+      name: q.longname || q.shortname || q.symbol,
+      exchange,
+      exchangeLabel: q.exchDisp || q.exchange,
+      currency: yahooSymbol.endsWith(".SI") ? "SGD" : (q.symbol.endsWith(".NS") || q.symbol.endsWith(".BO") ? "INR" : (q.currency || "USD")),
+    };
+  });
 }
 
 async function searchSymbols(query, market) {
@@ -284,19 +320,17 @@ async function searchSymbols(query, market) {
 }
 
 async function resolveEquitySymbol(symbol, category, existingYahoo) {
-  if (existingYahoo) return { yahooSymbol: existingYahoo, symbol: normalizeSymbolInput(symbol) };
+  if (existingYahoo) {
+    const y = toYahooSymbol(existingYahoo);
+    return { yahooSymbol: y, symbol: cleanDisplaySymbol(y), exchange: inferExchangeFromSymbol(y) };
+  }
   const market = category === "EQUITY_INDIAN" ? "indian" : "foreign";
   const { results } = await searchSymbols(symbol, market);
   if (results.length) {
-    return {
-      symbol: results[0].symbol,
-      yahooSymbol: results[0].yahooSymbol,
-      exchange: results[0].exchange,
-      currency: results[0].currency,
-      name: results[0].name,
-    };
+    return { yahooSymbol: results[0].yahooSymbol, symbol: results[0].symbol, exchange: results[0].exchange };
   }
-  return { symbol: normalizeSymbolInput(symbol), yahooSymbol: null };
+  const y = toYahooSymbol(symbol);
+  return { yahooSymbol: y, symbol: cleanDisplaySymbol(y), exchange: inferExchangeFromSymbol(y) };
 }
 
 function buildSummary(assets, rates, appConfig) {
@@ -467,7 +501,8 @@ async function handleApi(req, res, url, query) {
   if (req.method === "POST" && url === "/api/revalue") {
     const body = await parseBody(req);
     const data = readData();
-    const targets = data.assets.filter((a) => {
+    const source = body.assets?.length ? body.assets : data.assets;
+    const targets = source.filter((a) => {
       if (a.category !== "EQUITY_INDIAN" && a.category !== "EQUITY_FOREIGN") return false;
       if (body.assetIds?.length) return body.assetIds.includes(a.id);
       if (body.category) return a.category === body.category;
@@ -476,22 +511,27 @@ async function handleApi(req, res, url, query) {
 
     const results = [];
     for (const asset of targets) {
+      const stored = data.assets.find((a) => a.id === asset.id) || asset;
       try {
-        const { price: currentPrice, currency: priceCurrency } = await fetchStockPrice(
+        const { price: currentPrice, currency: priceCurrency, yahooSymbol } = await fetchStockPrice(
           asset.symbol, asset.exchange, asset.yahooSymbol, asset.category
         );
         const newValue = calculateEquityValue({ ...asset, currentPrice });
-        asset.currentPrice = currentPrice;
-        asset.value = newValue;
-        asset.yahooSymbol = asset.yahooSymbol || buildYahooSymbol(asset.symbol, asset.exchange);
-        if (!asset.currency || asset.currency === "INR") {
-          // keep user-set currency; only hint if unset on foreign
-        }
-        asset.lastRevaluedAt = new Date().toISOString();
-        asset.updatedAt = new Date().toISOString();
+        const cleanSymbol = cleanDisplaySymbol(yahooSymbol);
+        const exchange = inferExchangeFromSymbol(yahooSymbol) || asset.exchange || "SGX";
+
+        stored.currentPrice = currentPrice;
+        stored.value = newValue;
+        stored.yahooSymbol = yahooSymbol;
+        stored.symbol = cleanSymbol;
+        stored.exchange = exchange;
+        stored.currency = priceCurrency;
+        stored.lastRevaluedAt = new Date().toISOString();
+        stored.updatedAt = new Date().toISOString();
+
         results.push({
-          id: asset.id, name: asset.name, symbol: asset.symbol,
-          yahooSymbol: asset.yahooSymbol,
+          id: asset.id, name: asset.name, symbol: cleanSymbol,
+          yahooSymbol, exchange, currency: priceCurrency,
           currentPrice, priceCurrency, newValue, success: true,
         });
       } catch (err) {

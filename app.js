@@ -239,6 +239,10 @@ function readForm() {
   }
   if (cat === "EQUITY_INDIAN" || cat === "EQUITY_FOREIGN") {
     const rawSymbol = form.symbol.value.toUpperCase().trim();
+    // Keep yahooSymbol if user typed D05.SI / D05.SG
+    if (! $("#yahooSymbolInput").value && rawSymbol.includes(".")) {
+      $("#yahooSymbolInput").value = rawSymbol.replace(/\.SG$/i, ".SI");
+    }
     body.symbol = rawSymbol.replace(/\.(NS|BO|L|SI|SG)$/i, "");
     body.yahooSymbol = $("#yahooSymbolInput").value || null;
     body.quantity = parseFloat(form.quantity.value) || 0;
@@ -310,14 +314,20 @@ window.deleteAsset = async function (id) {
 };
 
 async function applyRevalue(data) {
+  const patch = (r) => ({
+    currentPrice: r.currentPrice,
+    value: r.newValue,
+    yahooSymbol: r.yahooSymbol,
+    symbol: r.symbol,
+    exchange: r.exchange,
+    currency: r.currency || r.priceCurrency,
+    lastRevaluedAt: new Date().toISOString(),
+  });
+
   if (!useServerStorage) {
     for (const r of data.results || []) {
       if (!r.success) continue;
-      Storage.update(r.id, {
-        currentPrice: r.currentPrice,
-        value: r.newValue,
-        lastRevaluedAt: new Date().toISOString(),
-      });
+      Storage.update(r.id, patch(r));
     }
   }
   await refresh();
