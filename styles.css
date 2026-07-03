@@ -110,6 +110,7 @@ h1 { font-size: 1.35rem; font-weight: 700; }
 .asset-name { font-weight: 600; }
 .asset-detail { font-size: .75rem; color: var(--muted); margin-top: 2px; }
 .asset-value { font-weight: 700; text-align: right; white-space: nowrap; }
+.asset-value-inr { font-weight: 700; }
 .asset-actions { text-align: right; white-space: nowrap; }
 .badge {
   display: inline-block; padding: 2px 8px; border-radius: 12px;

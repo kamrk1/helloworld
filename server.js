@@ -345,7 +345,11 @@ function buildSummary(assets, rates, appConfig) {
     totalInr += valueInr;
     if (categoryMap[asset.category]) {
       categoryMap[asset.category].totalInr += valueInr;
-      categoryMap[asset.category].assets.push({ ...asset, computedValue: value });
+      categoryMap[asset.category].assets.push({
+        ...asset,
+        computedValue: value,
+        computedValueInr: valueInr,
+      });
     }
   }
 

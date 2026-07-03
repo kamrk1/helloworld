@@ -42,7 +42,35 @@ function fmtDate(d) {
   return new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", year: "numeric" }).format(new Date(d));
 }
 
-function toast(msg) {
+function fmtLakh(amount) {
+  if (amount >= 100000) return `₹${(amount / 100000).toFixed(2)}L`;
+  return fmt(amount);
+}
+
+function assetValueHtml(a) {
+  const native = a.computedValue ?? a.value ?? 0;
+  const inr = a.computedValueInr ?? (a.currency === "INR" ? native : null);
+
+  if (a.currency !== "INR" && inr != null) {
+    return `<div class="asset-value-inr">${fmt(inr)}</div>
+      <div class="asset-detail">${fmt(native, a.currency)} · ${a.currency}</div>`;
+  }
+  return `<div class="asset-value-inr">${fmt(native, a.currency)}</div>`;
+}
+
+function mergeAssetsWithInr(assetList, summaryData) {
+  const inrMap = new Map();
+  for (const cat of summaryData?.categories || []) {
+    for (const a of cat.assets || []) {
+      inrMap.set(a.id, a.computedValueInr);
+    }
+  }
+  return assetList.map((a) => ({
+    ...a,
+    computedValue: a.computedValue ?? Calc.getAssetValue(a),
+    computedValueInr: inrMap.get(a.id) ?? (a.currency === "INR" ? Calc.getAssetValue(a) : null),
+  }));
+}
   const el = $("#toast");
   el.textContent = msg;
   el.hidden = false;
@@ -135,13 +163,13 @@ function renderAssets() {
   el.innerHTML = `<table class="asset-table">
     <thead><tr>
       <th>Asset</th><th class="col-cat">Category</th>
-      <th style="text-align:right">Value</th><th style="text-align:right">Actions</th>
+      <th style="text-align:right">Value (INR)</th><th style="text-align:right">Actions</th>
     </tr></thead>
     <tbody>${filtered.map((a) => `
       <tr>
         <td><div class="asset-name">${esc(a.name)}</div><div class="asset-detail">${esc(assetDetail(a))}</div></td>
         <td class="col-cat"><span class="badge badge-${a.category}">${config.categoryLabels[a.category] || a.category}</span></td>
-        <td class="asset-value">${fmt(a.computedValue ?? a.value, a.currency)}${a.currency !== "INR" ? `<div class="asset-detail">${a.currency}</div>` : ""}</td>
+        <td class="asset-value">${assetValueHtml(a)}</td>
         <td class="asset-actions">
           ${isEquity(a) ? `<button class="btn-sm" onclick="revalueOne('${a.id}')" title="Revalue">↻</button> ` : ""}
           <button class="btn-sm" onclick="editAsset('${a.id}')">Edit</button>
@@ -266,10 +294,13 @@ function readForm() {
 
 async function refresh() {
   if (useServerStorage) {
-    [assets, summary] = await Promise.all([api("/api/assets"), api("/api/summary")]);
+    const [rawAssets, summaryData] = await Promise.all([api("/api/assets"), api("/api/summary")]);
+    summary = summaryData;
+    assets = mergeAssetsWithInr(rawAssets, summary);
   } else {
-    assets = Storage.getAssets().map((a) => ({ ...a, computedValue: Calc.getAssetValue(a) }));
-    summary = await Calc.buildSummary(assets, config);
+    const rawAssets = Storage.getAssets();
+    summary = await Calc.buildSummary(rawAssets, config);
+    assets = mergeAssetsWithInr(rawAssets, summary);
   }
 
   const hasEquity = assets.some((a) => a.category === "EQUITY_INDIAN" || a.category === "EQUITY_FOREIGN");
