@@ -52,8 +52,10 @@ function assetValueHtml(a) {
   const inr = a.computedValueInr ?? (a.currency === "INR" ? native : null);
 
   if (a.currency !== "INR" && inr != null) {
+    const fx = native > 0 ? (inr / native) : null;
     return `<div class="asset-value-inr">${fmt(inr)}</div>
-      <div class="asset-detail">${fmt(native, a.currency)} · ${a.currency}</div>`;
+      <div class="asset-detail">${fmt(native, a.currency)} · ${a.currency}</div>
+      ${fx ? `<div class="asset-detail">FX: 1 ${a.currency} ≈ ₹${fx.toFixed(2)}</div>` : ""}`;
   }
   return `<div class="asset-value-inr">${fmt(native, a.currency)}</div>`;
 }
