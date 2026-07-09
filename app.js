@@ -88,7 +88,15 @@ function renderHero() {
   if (!summary) return;
   $("#totalValue").textContent = fmt(summary.totalInr);
   const storage = useServerStorage ? "Server storage" : "Saved on this device";
-  $("#heroMeta").textContent = `${assets.length} assets · Updated ${new Date(summary.lastUpdated).toLocaleString("en-IN")} · INR · ${storage}`;
+  const fx = summary.exchangeRates || {};
+  const foreignCurrencies = [...new Set(
+    assets.filter((a) => a.currency && a.currency !== "INR").map((a) => a.currency)
+  )];
+  const fxLine = foreignCurrencies
+    .map((c) => `1 ${c} ≈ ₹${(fx[c] ?? 0).toFixed(2)}`)
+    .join(" · ");
+  const fxPart = fxLine ? ` · FX ${fxLine}` : "";
+  $("#heroMeta").textContent = `${assets.length} assets · Updated ${new Date(summary.lastUpdated).toLocaleString("en-IN")} · INR${fxPart} · ${storage}`;
 }
 
 function renderCategories() {

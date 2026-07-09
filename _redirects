@@ -1,0 +1,3 @@
+/api/fx-rates /.netlify/functions/fx-rates 200
+/api/search /.netlify/functions/search 200
+/api/revalue /.netlify/functions/revalue 200

@@ -1,4 +1,4 @@
-const CACHE = "networth-v2";
+const CACHE = "networth-v3";
 const STATIC = ["/", "/index.html", "/styles.css", "/config.json", "/manifest.json", "/icon.svg"];
 
 self.addEventListener("install", (e) => {

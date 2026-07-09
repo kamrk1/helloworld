@@ -102,6 +102,12 @@ const Calc = {
       assets: categoryMap[cat].assets,
     }));
 
-    return { totalInr, categories, lastUpdated: new Date().toISOString(), baseCurrency: "INR" };
+    return {
+      totalInr,
+      categories,
+      lastUpdated: new Date().toISOString(),
+      baseCurrency: "INR",
+      exchangeRates: rates,
+    };
   },
 };
