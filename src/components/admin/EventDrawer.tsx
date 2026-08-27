@@ -9,7 +9,7 @@ import { formatDateTime, toISODateIST } from "@/lib/datetime";
 import { STATUS_LABEL, statusClass } from "@/lib/status";
 import { useAdminData } from "./AdminDataProvider";
 import { useToast } from "./Toast";
-import { apiJson, apiFetch } from "@/lib/api-client";
+import { apiJson, apiFetch, errorFromHttpResponse } from "@/lib/api-client";
 import { AppointmentFormModal } from "./AppointmentFormModal";
 import { PrescriptionModal } from "./PrescriptionModal";
 
@@ -78,7 +78,7 @@ export function EventDrawer({
     setBusy(true);
     try {
       const res = await apiFetch(`/api/admin/appointments/${appointment.id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Delete failed");
+      if (!res.ok) throw errorFromHttpResponse(res.status);
       removeAppointment(appointment.id);
       toast.push("Appointment deleted");
       onClose();
@@ -95,7 +95,7 @@ export function EventDrawer({
     try {
       const res = await apiFetch(`/api/admin/blocks/${block.id}`, { method: "DELETE" });
       if (!res.ok) {
-        toast.push("Could not remove block", "err");
+        toast.push(errorFromHttpResponse(res.status).message, "err");
         return;
       }
       removeBlock(block.id);

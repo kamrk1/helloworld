@@ -22,7 +22,7 @@ import { useToast } from "./Toast";
 import { AppointmentFormModal } from "./AppointmentFormModal";
 import { BlockFormModal } from "./BlockFormModal";
 import { EventDrawer } from "./EventDrawer";
-import { apiJson } from "@/lib/api-client";
+import { apiJson, reachabilityBanner, UNREACHABLE_BANNER } from "@/lib/api-client";
 
 function snapDuration(minutes: number) {
   return ([30, 60, 90] as const).reduce((best, n) =>
@@ -76,7 +76,7 @@ function EventInner({ arg }: { arg: EventContentArg }) {
 }
 
 export function CalendarBoard() {
-  const { snapshot, upsertAppointment, fromCache, refreshing, online } = useAdminData();
+  const { snapshot, upsertAppointment, fromCache, refreshing, online, serverUnreachable } = useAdminData();
   const toast = useToast();
   const calRef = useRef<FullCalendar>(null);
   const [title, setTitle] = useState("");
@@ -85,6 +85,7 @@ export function CalendarBoard() {
   const [blockRange, setBlockRange] = useState<{ start: Date; end: Date } | null>(null);
   const [selectedAppt, setSelectedAppt] = useState<AppointmentDTO | null>(null);
   const [selectedBlock, setSelectedBlock] = useState<BlockDTO | null>(null);
+  const banner = reachabilityBanner({ online, serverUnreachable, fromCache, refreshing });
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 768px)");
@@ -226,9 +227,14 @@ export function CalendarBoard() {
           <span className="hidden text-[11px] text-slate-400 lg:inline">Updating…</span>
         )}
       </div>
-      {!online && (
+      {banner === "offline" && (
         <div className="bg-amber-50 px-3 py-1.5 text-center text-[11px] font-medium text-amber-800 md:hidden">
           Offline — showing last saved week. Edits need a connection.
+        </div>
+      )}
+      {banner === "unreachable" && (
+        <div className="bg-amber-50 px-3 py-1.5 text-center text-[11px] font-medium text-amber-800 md:hidden">
+          {UNREACHABLE_BANNER}
         </div>
       )}
 

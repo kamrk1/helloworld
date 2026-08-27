@@ -14,6 +14,7 @@ import { useAdminData } from "./AdminDataProvider";
 import { CLINIC } from "@/lib/clinic-config";
 import { clsx } from "clsx";
 import { InstallHint } from "./InstallHint";
+import { reachabilityBanner, UNREACHABLE_BANNER } from "@/lib/api-client";
 
 const NAV = [
   { href: "/admin", label: "Calendar", icon: CalendarDays, exact: true },
@@ -26,13 +27,14 @@ const NAV = [
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { snapshot, refreshing, fromCache, online } = useAdminData();
+  const { snapshot, refreshing, fromCache, online, serverUnreachable } = useAdminData();
   if (pathname.startsWith("/admin/print")) {
     return <>{children}</>;
   }
 
   const pending = snapshot.appointments.filter((a) => a.status === "PENDING").length;
   const isCalendar = pathname === "/admin";
+  const banner = reachabilityBanner({ online, serverUnreachable, fromCache, refreshing });
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -86,12 +88,17 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         </nav>
         <InstallHint />
         <div className="px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2">
-          {!online && (
+          {banner === "offline" && (
             <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-medium leading-snug text-amber-800">
               Offline — last saved calendar. Changes save when you’re back online.
             </p>
           )}
-          {online && fromCache && refreshing && (
+          {banner === "unreachable" && (
+            <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-medium leading-snug text-amber-800">
+              {UNREACHABLE_BANNER}
+            </p>
+          )}
+          {banner === "updating" && (
             <p className="mb-3 px-3 text-[11px] text-slate-400">Updating from cloud…</p>
           )}
           <button onClick={logout} className="btn-ghost w-full justify-start text-slate-500">
@@ -108,8 +115,11 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             <img src="/logo.svg" alt="" className="h-8 w-8 rounded-lg" />
             <span className="font-display text-sm font-semibold text-teal-dark">SDC Admin</span>
           </div>
-          {refreshing && <span className="text-[11px] text-slate-400">Updating…</span>}
-          {!online && <span className="text-[11px] font-semibold text-amber-700">Offline</span>}
+          {banner === "updating" && <span className="text-[11px] text-slate-400">Updating…</span>}
+          {banner === "offline" && <span className="text-[11px] font-semibold text-amber-700">Offline</span>}
+          {banner === "unreachable" && (
+            <span className="text-[11px] font-semibold text-amber-700">Can't reach server</span>
+          )}
         </header>
 
         <main

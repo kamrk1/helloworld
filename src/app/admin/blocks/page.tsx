@@ -3,7 +3,7 @@
 import { useAdminData } from "@/components/admin/AdminDataProvider";
 import { useToast } from "@/components/admin/Toast";
 import { formatDateTime } from "@/lib/datetime";
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch, errorFromHttpResponse } from "@/lib/api-client";
 
 export default function BlocksPage() {
   const { snapshot, removeBlock } = useAdminData();
@@ -15,7 +15,7 @@ export default function BlocksPage() {
     try {
       const res = await apiFetch(`/api/admin/blocks/${id}`, { method: "DELETE" });
       if (!res.ok) {
-        toast.push("Could not remove", "err");
+        toast.push(errorFromHttpResponse(res.status).message, "err");
         return;
       }
       removeBlock(id);
