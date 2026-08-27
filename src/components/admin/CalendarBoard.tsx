@@ -128,15 +128,10 @@ export function CalendarBoard() {
   function handleSelect(info: DateSelectArg) {
     const start = fromCalendarMarker(info.start, info.startStr);
     const end = fromCalendarMarker(info.end, info.endStr);
-    const minutes = durationMinutes(start, end);
     info.view.calendar.unselect();
-    // Clicks on one 30-min slot are handled by dateClick. A short select is the
-    // fallback when the pointer moved slightly in the same cell.
-    if (minutes <= CLINIC.slotMinutes) {
-      setCreateStart(start);
-    } else {
-      setBlockRange({ start, end });
-    }
+    // Click-drag always creates a clinic block, including a single 30-min slot.
+    // A click without drag is dateClick → new appointment.
+    setBlockRange({ start, end });
   }
 
   function handleEventClick(info: EventClickArg) {
