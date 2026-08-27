@@ -53,6 +53,39 @@ export function fromCalendarMarker(date: Date, dateStr?: string) {
   return istDateTime(p.year, p.month, p.day, p.hour, p.minute);
 }
 
+export type CalendarClickInfo = {
+  date: Date;
+  dateStr?: string;
+  dayEl?: { getAttribute(name: string): string | null } | null;
+  jsEvent?: { target: EventTarget | null } | null;
+};
+
+/**
+ * Appointment modal start from a time-grid click.
+ * Prefer the visible column's `data-date` (clicked day) plus the HH:mm from
+ * dateStr. Never use `new Date()` or UTC getters — those become "today" when
+ * the Date object is a UTC-shifted marker.
+ */
+export function fromCalendarDateClick(info: CalendarClickInfo): Date {
+  const target = info.jsEvent?.target;
+  const colEl =
+    target && typeof (target as Element).closest === "function"
+      ? (target as Element).closest("[data-date]")
+      : null;
+  const colDate =
+    colEl?.getAttribute("data-date") || info.dayEl?.getAttribute("data-date") || undefined;
+  const m = info.dateStr?.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
+  const strDate = m?.[1];
+  const strTime = m?.[2];
+  const isoDate = colDate || strDate;
+  if (isoDate && strTime) return istDateTimeFromIsoDate(isoDate, strTime);
+  if (isoDate) {
+    const fallback = fromCalendarMarker(info.date, info.dateStr);
+    return istDateTimeFromIsoDate(isoDate, toHHMMIST(fallback));
+  }
+  return fromCalendarMarker(info.date, info.dateStr);
+}
+
 export function toISODateIST(date: Date) {
   const p = getISTParts(date);
   return `${p.year}-${pad(p.month)}-${pad(p.day)}`;

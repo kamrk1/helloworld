@@ -75,7 +75,7 @@
   --fc-neutral-bg-color: #f7f5f2;
   --fc-today-bg-color: #f3fafa;
   --fc-now-indicator-color: #0e6b6f;
-  --fc-highlight-color: rgba(14, 107, 111, 0.08);
+  --fc-highlight-color: rgba(14, 107, 111, 0.38);
   --fc-event-border-color: transparent;
   --fc-small-font-size: 0.75rem;
   font-family: var(--font-inter), system-ui, sans-serif;
@@ -225,7 +225,18 @@
 }
 
 .fc .fc-highlight {
-  background: rgba(14, 107, 111, 0.12) !important;
+  background: rgba(14, 107, 111, 0.38) !important;
+}
+
+/* selectMirror ghost while dragging empty slots — keep it visible until mouseup */
+.fc .fc-event-mirror,
+.fc .fc-event.fc-event-mirror {
+  background: rgba(14, 107, 111, 0.28) !important;
+  border: 2px dashed #0e6b6f !important;
+  color: #0e6b6f !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+  pointer-events: none !important;
 }
 
 .fc .fc-bg-event {

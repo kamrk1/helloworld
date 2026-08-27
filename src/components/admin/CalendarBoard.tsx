@@ -15,7 +15,7 @@ import type {
 import type { DateClickArg, EventResizeDoneArg } from "@fullcalendar/interaction";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { CLINIC } from "@/lib/clinic-config";
-import { durationMinutes, fromCalendarMarker } from "@/lib/datetime";
+import { durationMinutes, fromCalendarDateClick, fromCalendarMarker } from "@/lib/datetime";
 import type { AppointmentDTO, BlockDTO } from "@/lib/types";
 import { useAdminData } from "./AdminDataProvider";
 import { useToast } from "./Toast";
@@ -120,9 +120,10 @@ export function CalendarBoard() {
   }
 
   function handleDateClick(info: DateClickArg) {
-    // Single-slot clicks: use FullCalendar's dateClick start (Asia/Kolkata wall clock).
+    // Single-slot clicks: clicked column date + dateStr time (Asia/Kolkata).
+    // Do not use `new Date()` — that is "today" and ignores the Saturday cell.
     info.view.calendar.unselect();
-    setCreateStart(fromCalendarMarker(info.date, info.dateStr));
+    setCreateStart(fromCalendarDateClick(info));
   }
 
   function handleSelect(info: DateSelectArg) {
