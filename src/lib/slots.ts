@@ -1,29 +1,23 @@
 import { CLINIC, ACTIVE_STATUSES } from "./clinic-config";
-import { addMinutes, istDateTimeFromIsoDate, toISODateIST, weekdayIST } from "./datetime";
+import { addMinutes, istDateTimeFromIsoDate, toISODateIST } from "./datetime";
 import { prisma } from "./prisma";
+import {
+  calendarDateStatus,
+  clinicClosedOn,
+  generateDayStarts,
+  reasonForSlot,
+  type DaySlots,
+} from "./slot-logic";
 
-export type Slot = { time: string; available: boolean };
-
-export function clinicClosedOn(date: Date) {
-  return CLINIC.closedWeekdays.includes(weekdayIST(date));
-}
-
-function timeToMinutes(hhmm: string) {
-  const [h, m] = hhmm.split(":").map(Number);
-  return h * 60 + m;
-}
-
-export function generateDayStarts() {
-  const starts: string[] = [];
-  const from = timeToMinutes(CLINIC.hours.start);
-  const to = timeToMinutes(CLINIC.hours.end);
-  for (let t = from; t + CLINIC.slotMinutes <= to; t += CLINIC.slotMinutes) {
-    const h = Math.floor(t / 60);
-    const m = t % 60;
-    starts.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
-  }
-  return starts;
-}
+export {
+  calendarDateStatus,
+  clinicClosedOn,
+  generateDayStarts,
+  reasonForSlot,
+  type DaySlots,
+  type Slot,
+  type SlotReason,
+} from "./slot-logic";
 
 export async function occupiedRanges(from: Date, to: Date, excludeAppointmentId?: string) {
   const [appointments, blocks] = await Promise.all([
@@ -47,27 +41,45 @@ export async function occupiedRanges(from: Date, to: Date, excludeAppointmentId?
   ];
 }
 
-function overlaps(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date) {
-  return aStart < bEnd && aEnd > bStart;
-}
-
-export async function listSlotsForDate(isoDate: string, durationMin: number = CLINIC.defaultDuration) {
+export async function listSlotsForDate(
+  isoDate: string,
+  durationMin: number = CLINIC.defaultDuration,
+): Promise<DaySlots> {
   const dayStart = istDateTimeFromIsoDate(isoDate, "00:00");
-  if (clinicClosedOn(dayStart)) return [] as Slot[];
+  const dateStatus = calendarDateStatus(isoDate);
+  const past = dateStatus === "past";
+  if (clinicClosedOn(dayStart)) {
+    return { date: isoDate, closed: true, past, slots: [] };
+  }
 
   const dayEnd = istDateTimeFromIsoDate(isoDate, "23:59");
-  const occupied = await occupiedRanges(dayStart, addMinutes(dayEnd, 1));
+  const windowEnd = addMinutes(dayEnd, 1);
+  const [appointmentRows, blockRows] = await Promise.all([
+    prisma.appointment.findMany({
+      where: {
+        status: { in: [...ACTIVE_STATUSES] },
+        startAt: { lt: windowEnd },
+        endAt: { gt: dayStart },
+      },
+      select: { startAt: true, endAt: true },
+    }),
+    prisma.clinicBlock.findMany({
+      where: { startAt: { lt: windowEnd }, endAt: { gt: dayStart } },
+      select: { startAt: true, endAt: true },
+    }),
+  ]);
+  const booked = appointmentRows.map((a) => ({ start: a.startAt, end: a.endAt }));
+  const blocked = blockRows.map((b) => ({ start: b.startAt, end: b.endAt }));
   const now = new Date();
+  const clinicEnd = istDateTimeFromIsoDate(isoDate, CLINIC.hours.end);
 
-  return generateDayStarts().map((time) => {
+  const slots = generateDayStarts().map((time) => {
     const start = istDateTimeFromIsoDate(isoDate, time);
     const end = addMinutes(start, durationMin);
-    const clinicEnd = istDateTimeFromIsoDate(isoDate, CLINIC.hours.end);
-    const inPast = start < now;
-    const tooLate = end > clinicEnd;
-    const busy = occupied.some((r) => overlaps(start, end, r.start, r.end));
-    return { time, available: !inPast && !tooLate && !busy };
+    const reason = reasonForSlot({ start, end, now, clinicEnd, dateStatus, booked, blocked });
+    return reason ? { time, available: false, reason } : { time, available: true };
   });
+  return { date: isoDate, closed: false, past, slots };
 }
 
 export async function findConflicts(opts: {

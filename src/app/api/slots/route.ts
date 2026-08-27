@@ -9,6 +9,6 @@ export async function GET(req: Request) {
   if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return NextResponse.json({ error: "Query date=YYYY-MM-DD is required" }, { status: 400 });
   }
-  const slots = await listSlotsForDate(date, Number.isFinite(duration) ? duration : 30);
-  return NextResponse.json({ date, slots, timezone: CLINIC.timezone });
+  const day = await listSlotsForDate(date, Number.isFinite(duration) ? duration : 30);
+  return NextResponse.json({ ...day, timezone: CLINIC.timezone });
 }
