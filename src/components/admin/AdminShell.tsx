@@ -118,7 +118,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           {banner === "updating" && <span className="text-[11px] text-slate-400">Updating…</span>}
           {banner === "offline" && <span className="text-[11px] font-semibold text-amber-700">Offline</span>}
           {banner === "unreachable" && (
-            <span className="text-[11px] font-semibold text-amber-700">Can't reach server</span>
+            <span className="text-[11px] font-semibold text-amber-700">Can’t reach server</span>
           )}
         </header>
 
