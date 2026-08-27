@@ -60,6 +60,8 @@ While offline, the last snapshot still paints. Creating or moving an appointment
 
 Production target: **https://proud-truth-84df.kamrk1.workers.dev** — Cloudflare Worker named `proud-truth-84df` (OpenNext, Next.js Node runtime via `nodejs_compat`). `/` is public booking, `/login` and `/admin` are the clinic admin, and the PWA (`/manifest.webmanifest`, `/sw.js`, `start_url` `/admin`) stays on that HTTPS origin.
 
+Cloudflare Workers Builds is connected; first production deploy is triggered by this commit.
+
 `@opennextjs/cloudflare` is pinned to **1.15.1** — the last adapter release that still declares a Next.js `^14.2.35` peer. `@latest` (1.20+) requires Next 15.5+/16 and would force a framework upgrade.
 
 Cloudflare Workers cannot open a raw Prisma query-engine TCP socket the way a Node host can. This app keeps the **same Prisma Postgres schema and seed** and talks to Postgres through `@prisma/adapter-pg` + `pg` (driver adapters). Do not rewrite the database to D1.
