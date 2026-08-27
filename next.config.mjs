@@ -20,18 +20,6 @@ const nextConfig = {
     "@fullcalendar/interaction",
     "@fullcalendar/luxon3",
   ],
-  webpack: (config, { isServer, webpack }) => {
-    if (isServer && hosted.DATABASE_URL) {
-      config.plugins.push(
-        new webpack.DefinePlugin({
-          "process.env.DATABASE_URL": JSON.stringify(process.env.DATABASE_URL ?? ""),
-          "process.env.ADMIN_PASSWORD": JSON.stringify(process.env.ADMIN_PASSWORD ?? ""),
-          "process.env.SESSION_SECRET": JSON.stringify(process.env.SESSION_SECRET ?? ""),
-        }),
-      );
-    }
-    return config;
-  },
 };
 
 export default nextConfig;

@@ -20,9 +20,15 @@ Open:
 - Public booking: [http://localhost:3000](http://localhost:3000)
 - Admin calendar: [http://localhost:3000/admin](http://localhost:3000/admin) (redirects to `/login`)
 
-Default local password from `.env.example` is `changeme`. Change it.
+Default local password from `.env.example` is `changeme`. For local secrets, copy values into `.env.local` (gitignored). The committed `.env` is only a placeholder for hosted builds.
 
 The calendar paints immediately from the last snapshot in `localStorage`, then refreshes from the API. Seeded appointments fill the current week so the grid is not empty.
+
+## Hosting (Vercel)
+
+Vercel serverless cannot use SQLite `file://`. Set `DATABASE_URL` to Postgres (`npx create-db@latest` or Neon), plus `ADMIN_PASSWORD` and `SESSION_SECRET` in the project env. `npm run build` runs `prisma migrate deploy` and seeds if the database is empty.
+
+Anonymous `vercel deploy --temporary` URLs expire in about an hour unless you open the claim URL and attach them to your Vercel account.
 
 ## Environment variables
 

@@ -1,5 +1,13 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
+import { HOSTED } from "./hosted-values";
+
+function applyHosted(key: "ADMIN_PASSWORD" | "SESSION_SECRET") {
+  const value = HOSTED[key];
+  if (value && !process.env[key]) process.env[key] = value;
+}
+applyHosted("ADMIN_PASSWORD");
+applyHosted("SESSION_SECRET");
 
 const COOKIE = "sdc_session";
 const MAX_AGE = 60 * 60 * 24 * 7;
