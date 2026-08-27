@@ -1,4 +1,4 @@
-const VERSION = "sdc-pwa-v2";
+const VERSION = "sdc-pwa-v3";
 const PRECACHE = [
   "/",
   "/login",
@@ -62,14 +62,8 @@ async function networkFirst(req) {
     }
     return res;
   } catch {
-    const cached = await caches.match(req);
-    return (
-      cached ||
-      new Response(JSON.stringify({ error: "offline" }), {
-        status: 503,
-        headers: { "Content-Type": "application/json" },
-      })
-    );
+    // Reject so the page can tell offline (navigator.onLine) from a down host.
+    throw new TypeError("Failed to fetch");
   }
 }
 
