@@ -97,4 +97,14 @@ assert(
   "live snapshot has no banner",
 );
 
+assert(
+  reachabilityBanner({
+    online: true,
+    serverUnreachable: true,
+    fromCache: false,
+    refreshing: false,
+  }) === "unreachable",
+  "unreachable banner does not require fromCache",
+);
+
 console.log("ok");

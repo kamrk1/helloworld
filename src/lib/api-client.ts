@@ -7,6 +7,14 @@ export const SERVER_ERROR_MESSAGE = "Clinic server error. Try again.";
 
 export const UNREACHABLE_BANNER = "Can't reach server — showing last saved calendar.";
 
+export const SERVER_UNREACHABLE_EVENT = "sdc:server-unreachable";
+export const SERVER_REACHABLE_EVENT = "sdc:server-reachable";
+
+function announceReachability(kind: "reachable" | "unreachable") {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(kind === "unreachable" ? SERVER_UNREACHABLE_EVENT : SERVER_REACHABLE_EVENT));
+}
+
 export class OfflineError extends Error {
   constructor(message = OFFLINE_WRITE_MESSAGE) {
     super(message);
@@ -74,9 +82,13 @@ export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Pr
     throw new OfflineError();
   }
   try {
-    return await fetch(input, init);
+    const res = await fetch(input, init);
+    announceReachability(res.status >= 500 ? "unreachable" : "reachable");
+    return res;
   } catch {
-    throw errorAfterFetchFailure(navigatorOnLine());
+    const err = errorAfterFetchFailure(navigatorOnLine());
+    if (err instanceof UnreachableError) announceReachability("unreachable");
+    throw err;
   }
 }
 

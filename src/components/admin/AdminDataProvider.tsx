@@ -3,7 +3,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { AppointmentDTO, BlockDTO, PatientDTO, SnapshotDTO } from "@/lib/types";
 import { SNAPSHOT_CACHE_KEY } from "@/lib/types";
-import { apiFetch, OfflineError } from "@/lib/api-client";
+import {
+  apiFetch,
+  OfflineError,
+  SERVER_REACHABLE_EVENT,
+  SERVER_UNREACHABLE_EVENT,
+} from "@/lib/api-client";
 import { useOnlineStatus } from "./useOnlineStatus";
 
 function readCache(): SnapshotDTO | null {
@@ -96,6 +101,29 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     if (online && !wasOnline.current) void refresh();
     wasOnline.current = online;
   }, [online, refresh]);
+
+  useEffect(() => {
+    const down = () => setServerUnreachable(true);
+    const up = () => setServerUnreachable(false);
+    window.addEventListener(SERVER_UNREACHABLE_EVENT, down);
+    window.addEventListener(SERVER_REACHABLE_EVENT, up);
+    return () => {
+      window.removeEventListener(SERVER_UNREACHABLE_EVENT, down);
+      window.removeEventListener(SERVER_REACHABLE_EVENT, up);
+    };
+  }, []);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible" && navigator.onLine) void refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [refresh]);
 
   const upsertAppointment = useCallback(
     (a: AppointmentDTO) => {
