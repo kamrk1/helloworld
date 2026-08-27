@@ -143,7 +143,9 @@
 }
 
 /* Clip events to their own day column so a tall Thursday appointment cannot
-   steal clicks on Friday empty cells. isolation/contain keep stacking local. */
+   steal clicks on Friday empty cells. The events layer is position:absolute with
+   only top/left/right — give it bottom:0 so overflow clipping has a real box.
+   Do not overflow-hidden the zero-height default box or events disappear. */
 .fc .fc-timegrid-col {
   position: relative;
   isolation: isolate;
@@ -151,12 +153,11 @@
 
 .fc .fc-timegrid-col-frame {
   overflow: hidden !important;
-  contain: paint;
 }
 
-.fc .fc-timegrid-col-events {
-  overflow: hidden !important;
-  position: relative;
+.fc-media-screen .fc-timegrid-col-events {
+  bottom: 0;
+  overflow: hidden;
 }
 
 .fc .fc-timegrid-event-harness,
