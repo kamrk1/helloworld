@@ -12,10 +12,10 @@ import type {
   EventDropArg,
   EventInput,
 } from "@fullcalendar/core";
-import type { EventResizeDoneArg } from "@fullcalendar/interaction";
+import type { DateClickArg, EventResizeDoneArg } from "@fullcalendar/interaction";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { CLINIC } from "@/lib/clinic-config";
-import { durationMinutes, istDateTimeFromIsoDate } from "@/lib/datetime";
+import { durationMinutes, fromCalendarMarker } from "@/lib/datetime";
 import type { AppointmentDTO, BlockDTO } from "@/lib/types";
 import { useAdminData } from "./AdminDataProvider";
 import { useToast } from "./Toast";
@@ -28,16 +28,6 @@ function snapDuration(minutes: number) {
   return ([30, 60, 90] as const).reduce((best, n) =>
     Math.abs(n - minutes) < Math.abs(best - minutes) ? n : best,
   );
-}
-
-/** FullCalendar dateStr in a named zone may omit the offset; treat clock time as IST. */
-function fromCalendar(date: Date, dateStr?: string) {
-  if (dateStr) {
-    if (/[zZ]|[+-]\d{2}:\d{2}$/.test(dateStr)) return new Date(dateStr);
-    const m = dateStr.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
-    if (m) return istDateTimeFromIsoDate(m[1], m[2]);
-  }
-  return date;
 }
 
 function toEvents(appointments: AppointmentDTO[], blocks: BlockDTO[]): EventInput[] {
@@ -70,7 +60,7 @@ function EventInner({ arg }: { arg: EventContentArg }) {
   const kind = arg.event.extendedProps.kind as string;
   if (kind === "block") {
     return (
-      <div className="leading-tight">
+      <div className="h-full min-h-0 overflow-hidden leading-tight">
         <div className="font-semibold">Blocked</div>
         <div className="truncate text-[11px]">{arg.event.title}</div>
       </div>
@@ -78,7 +68,7 @@ function EventInner({ arg }: { arg: EventContentArg }) {
   }
   const appt = arg.event.extendedProps.appointment as AppointmentDTO;
   return (
-    <div className="leading-tight">
+    <div className="h-full min-h-0 overflow-hidden leading-tight">
       <div className="truncate font-semibold">{arg.event.title}</div>
       <div className="truncate text-[11px] opacity-90">{appt?.service}</div>
     </div>
@@ -128,11 +118,19 @@ export function CalendarBoard() {
     setTitle(calRef.current?.getApi().view.title ?? "");
   }
 
+  function handleDateClick(info: DateClickArg) {
+    // Single-slot clicks: use FullCalendar's dateClick start (Asia/Kolkata wall clock).
+    info.view.calendar.unselect();
+    setCreateStart(fromCalendarMarker(info.date, info.dateStr));
+  }
+
   function handleSelect(info: DateSelectArg) {
-    const start = fromCalendar(info.start, info.startStr);
-    const end = fromCalendar(info.end, info.endStr);
+    const start = fromCalendarMarker(info.start, info.startStr);
+    const end = fromCalendarMarker(info.end, info.endStr);
     const minutes = durationMinutes(start, end);
     info.view.calendar.unselect();
+    // Clicks on one 30-min slot are handled by dateClick. A short select is the
+    // fallback when the pointer moved slightly in the same cell.
     if (minutes <= CLINIC.slotMinutes) {
       setCreateStart(start);
     } else {
@@ -141,6 +139,8 @@ export function CalendarBoard() {
   }
 
   function handleEventClick(info: EventClickArg) {
+    info.jsEvent.preventDefault();
+    info.jsEvent.stopPropagation();
     const kind = info.event.extendedProps.kind;
     if (kind === "block") {
       setSelectedBlock(info.event.extendedProps.block as BlockDTO);
@@ -164,9 +164,9 @@ export function CalendarBoard() {
       info.revert();
       return;
     }
-    const start = fromCalendar(info.event.start, info.event.startStr);
+    const start = fromCalendarMarker(info.event.start, info.event.startStr);
     const rawEnd = info.event.end
-      ? fromCalendar(info.event.end, info.event.endStr)
+      ? fromCalendarMarker(info.event.end, info.event.endStr)
       : new Date(start.getTime() + prev.durationMin * 60_000);
     const durationMin = snapDuration(durationMinutes(start, rawEnd));
     const startAt = start.toISOString();
@@ -248,6 +248,8 @@ export function CalendarBoard() {
             nowIndicator
             selectable
             selectMirror
+            selectMinDistance={4}
+            slotEventOverlap={false}
             editable
             eventDurationEditable
             eventResizableFromStart={false}
@@ -266,6 +268,7 @@ export function CalendarBoard() {
             }
             scrollTime="10:00:00"
             events={events}
+            dateClick={handleDateClick}
             select={handleSelect}
             eventClick={handleEventClick}
             eventDrop={persistTimes}
@@ -279,7 +282,11 @@ export function CalendarBoard() {
       </div>
 
       {createStart && (
-        <AppointmentFormModal start={createStart} onClose={() => setCreateStart(null)} />
+        <AppointmentFormModal
+          key={createStart.toISOString()}
+          start={createStart}
+          onClose={() => setCreateStart(null)}
+        />
       )}
       {blockRange && (
         <BlockFormModal start={blockRange.start} end={blockRange.end} onClose={() => setBlockRange(null)} />

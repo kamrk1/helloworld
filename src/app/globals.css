@@ -88,7 +88,6 @@
 
 .fc .fc-scrollgrid {
   border-radius: 12px;
-  overflow: hidden;
   border-color: #e5ebeb !important;
 }
 
@@ -143,12 +142,41 @@
   border-color: #eef1f1;
 }
 
+/* Clip events to their own day column so a tall Thursday appointment cannot
+   steal clicks on Friday empty cells. isolation/contain keep stacking local. */
+.fc .fc-timegrid-col {
+  position: relative;
+  isolation: isolate;
+}
+
+.fc .fc-timegrid-col-frame {
+  overflow: hidden !important;
+  contain: paint;
+}
+
+.fc .fc-timegrid-col-events {
+  overflow: hidden !important;
+  position: relative;
+}
+
+.fc .fc-timegrid-event-harness,
+.fc .fc-timegrid-event,
+.fc .fc-event {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.fc .fc-timegrid-event-harness {
+  overflow: hidden;
+}
+
 .fc .fc-event {
   border: none !important;
   border-radius: 6px !important;
   box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06);
   font-size: 12px;
   padding: 1px 4px;
+  overflow: hidden;
 }
 
 .fc .fc-event-main {

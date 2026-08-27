@@ -36,6 +36,23 @@ export function istDateTimeFromIsoDate(isoDate: string, timeHHMM: string) {
   return new Date(`${isoDate}T${pad(hour)}:${pad(minute)}:00+05:30`);
 }
 
+/**
+ * Convert a FullCalendar named-timezone callback into an Asia/Kolkata instant.
+ *
+ * Always prefer startStr/dateStr: formatIso writes the Kolkata wall clock into the
+ * YYYY-MM-DDTHH:mm prefix (even when a +05:30 or Z suffix is present). Do not parse
+ * that string with `new Date()` — a trailing Z would shift the clock.
+ *
+ * `date` from dateClick/select is already a real instant (`dateEnv.toDate`). If the
+ * string is missing, read its Asia/Kolkata wall clock — never the Date's UTC getters.
+ */
+export function fromCalendarMarker(date: Date, dateStr?: string) {
+  const m = dateStr?.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
+  if (m) return istDateTimeFromIsoDate(m[1], m[2]);
+  const p = getISTParts(date);
+  return istDateTime(p.year, p.month, p.day, p.hour, p.minute);
+}
+
 export function toISODateIST(date: Date) {
   const p = getISTParts(date);
   return `${p.year}-${pad(p.month)}-${pad(p.day)}`;
