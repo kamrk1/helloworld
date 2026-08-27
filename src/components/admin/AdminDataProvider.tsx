@@ -1,8 +1,9 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { AppointmentDTO, BlockDTO, PatientDTO, SnapshotDTO } from "@/lib/types";
 import { SNAPSHOT_CACHE_KEY } from "@/lib/types";
+import { useOnlineStatus } from "./useOnlineStatus";
 
 function readCache(): SnapshotDTO | null {
   if (typeof window === "undefined") return null;
@@ -26,6 +27,7 @@ type AdminData = {
   snapshot: SnapshotDTO;
   fromCache: boolean;
   refreshing: boolean;
+  online: boolean;
   refresh: () => Promise<void>;
   setSnapshot: (next: SnapshotDTO | ((prev: SnapshotDTO) => SnapshotDTO)) => void;
   upsertAppointment: (a: AppointmentDTO) => void;
@@ -49,6 +51,7 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
   const [fromCache, setFromCache] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  const online = useOnlineStatus();
 
   const setSnapshot = useCallback((next: SnapshotDTO | ((prev: SnapshotDTO) => SnapshotDTO)) => {
     setSnapshotState((prev) => {
@@ -66,6 +69,8 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
       const data = (await res.json()) as SnapshotDTO;
       setSnapshot(data);
       setFromCache(false);
+    } catch {
+      setFromCache(true);
     } finally {
       setRefreshing(false);
     }
@@ -80,6 +85,12 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     setHydrated(true);
     void refresh();
   }, [refresh]);
+
+  const wasOnline = useRef(online);
+  useEffect(() => {
+    if (online && !wasOnline.current) void refresh();
+    wasOnline.current = online;
+  }, [online, refresh]);
 
   const upsertAppointment = useCallback(
     (a: AppointmentDTO) => {
@@ -140,6 +151,7 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
       snapshot,
       fromCache,
       refreshing,
+      online,
       refresh,
       setSnapshot,
       upsertAppointment,
@@ -152,6 +164,7 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
       snapshot,
       fromCache,
       refreshing,
+      online,
       refresh,
       setSnapshot,
       upsertAppointment,

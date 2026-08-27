@@ -8,11 +8,13 @@
     "start": "next start",
     "lint": "next lint",
     "db:migrate": "prisma migrate dev",
-    "db:generate": "prisma generate",
+    "db:generate": "prisma generate && prisma generate --schema prisma/cloud/schema.prisma",
     "db:seed": "prisma db seed",
     "db:reset": "prisma migrate reset --force",
     "import-csv": "tsx scripts/import-csv.ts",
-    "postinstall": "prisma generate"
+    "backup": "tsx scripts/backup.ts",
+    "icons:pwa": "node scripts/generate-pwa-icons.mjs",
+    "postinstall": "prisma generate && prisma generate --schema prisma/cloud/schema.prisma"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

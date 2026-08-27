@@ -9,7 +9,7 @@ const examplePath = path.join(root, ".env.example");
 
 if (!existsSync(envPath) && existsSync(examplePath)) {
   copyFileSync(examplePath, envPath);
-  console.log("Created .env from .env.example — set DATABASE_URL and ADMIN_PASSWORD in .env.local.");
+  console.log("Created .env from .env.example — set ADMIN_PASSWORD in .env.local for a custom login.");
 }
 
 function loadEnvFile(filePath: string) {
@@ -31,7 +31,16 @@ function loadEnvFile(filePath: string) {
   }
 }
 
+loadEnvFile(envPath);
 loadEnvFile(envLocal);
+
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = "file:./clinic.db";
+}
+
+function isPostgres(url = process.env.DATABASE_URL || "") {
+  return /^(postgres(ql)?|prisma\+postgres):/i.test(url);
+}
 
 function run(cmd: string, args: string[]) {
   const result = spawnSync(cmd, args, { stdio: "inherit", cwd: root, env: process.env });
@@ -41,5 +50,13 @@ function run(cmd: string, args: string[]) {
 }
 
 run("npx", ["prisma", "generate"]);
-run("npx", ["prisma", "migrate", "deploy"]);
+run("npx", ["prisma", "generate", "--schema", "prisma/cloud/schema.prisma"]);
+
+if (isPostgres()) {
+  console.log("Using hosted Postgres (DATABASE_URL). This is the live clinic database.");
+  run("npx", ["prisma", "migrate", "deploy", "--schema", "prisma/cloud/schema.prisma"]);
+} else {
+  console.log("Using local SQLite — no cloud credentials required.");
+  run("npx", ["prisma", "migrate", "deploy"]);
+}
 run("npx", ["prisma", "db", "seed"]);

@@ -9,6 +9,7 @@ import { formatDateTime, toISODateIST } from "@/lib/datetime";
 import { STATUS_LABEL, statusClass } from "@/lib/status";
 import { useAdminData } from "./AdminDataProvider";
 import { useToast } from "./Toast";
+import { apiJson, apiFetch } from "@/lib/api-client";
 import { AppointmentFormModal } from "./AppointmentFormModal";
 import { PrescriptionModal } from "./PrescriptionModal";
 
@@ -38,13 +39,11 @@ export function EventDrawer({
     const prev = appointment;
     upsertAppointment({ ...appointment, status });
     try {
-      const res = await fetch(`/api/admin/appointments/${appointment.id}`, {
+      const json = await apiJson<AppointmentDTO>(`/api/admin/appointments/${appointment.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Failed");
       upsertAppointment(json);
       toast.push(`Marked ${STATUS_LABEL[status].toLowerCase()}`);
     } catch (err) {
@@ -59,13 +58,11 @@ export function EventDrawer({
     if (!appointment) return;
     setBusy(true);
     try {
-      const res = await fetch(`/api/admin/appointments/${appointment.id}`, {
+      const json = await apiJson<AppointmentDTO>(`/api/admin/appointments/${appointment.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ followupDate: follow ? `${follow}T10:00:00+05:30` : null }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Failed");
       upsertAppointment(json);
       toast.push(follow ? "Follow-up saved" : "Follow-up cleared");
     } catch (err) {
@@ -80,7 +77,7 @@ export function EventDrawer({
     if (!confirm(`Delete ${appointment.ref}?`)) return;
     setBusy(true);
     try {
-      const res = await fetch(`/api/admin/appointments/${appointment.id}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/admin/appointments/${appointment.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Delete failed");
       removeAppointment(appointment.id);
       toast.push("Appointment deleted");
@@ -95,14 +92,18 @@ export function EventDrawer({
   async function destroyBlock() {
     if (!block) return;
     if (!confirm("Remove this clinic block?")) return;
-    const res = await fetch(`/api/admin/blocks/${block.id}`, { method: "DELETE" });
-    if (!res.ok) {
-      toast.push("Could not remove block", "err");
-      return;
+    try {
+      const res = await apiFetch(`/api/admin/blocks/${block.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        toast.push("Could not remove block", "err");
+        return;
+      }
+      removeBlock(block.id);
+      toast.push("Block removed");
+      onClose();
+    } catch (err) {
+      toast.push(err instanceof Error ? err.message : "Could not remove block", "err");
     }
-    removeBlock(block.id);
-    toast.push("Block removed");
-    onClose();
   }
 
   const live = appointment
@@ -111,9 +112,9 @@ export function EventDrawer({
 
   return (
     <>
-      <div className="fixed inset-0 z-40 flex justify-end">
+      <div className="fixed inset-0 z-40 flex items-end justify-end sm:items-stretch">
         <button className="absolute inset-0 bg-slate-900/30" aria-label="Close" onClick={onClose} />
-        <aside className="relative flex h-full w-full max-w-md flex-col bg-white shadow-2xl">
+        <aside className="relative flex max-h-[90dvh] w-full max-w-md flex-col rounded-t-2xl bg-white shadow-2xl sm:h-full sm:max-h-none sm:rounded-none">
           <div className="flex items-start justify-between border-b border-slate-100 px-5 py-4">
             <div>
               <div className="font-display text-xl font-semibold text-teal-dark">
@@ -211,7 +212,7 @@ export function EventDrawer({
             )}
           </div>
 
-          <div className="flex flex-wrap gap-2 border-t border-slate-100 px-5 py-3">
+          <div className="flex flex-wrap gap-2 border-t border-slate-100 px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
             {live && (
               <>
                 <button className="btn-secondary" onClick={() => setEditing(true)}>

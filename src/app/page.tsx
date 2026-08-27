@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { CLINIC } from "@/lib/clinic-config";
 import { addDays, toISODateIST, weekdayIST } from "@/lib/datetime";
 import { displayPhone } from "@/lib/phone";
+import { apiJson } from "@/lib/api-client";
 
 type Slot = { time: string; available: boolean };
 
@@ -74,13 +75,11 @@ export default function BookingPage() {
     setBusy(true);
     setError("");
     try {
-      const res = await fetch("/api/book", {
+      const json = await apiJson<{ appointment: { ref: string } }>("/api/book", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, phone, email, service, date, time, notes }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Could not book");
       setDone({ ref: json.appointment.ref });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not book");

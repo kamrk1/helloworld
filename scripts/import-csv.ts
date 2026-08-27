@@ -13,12 +13,10 @@
  */
 import { readFileSync } from "fs";
 import { parse } from "csv-parse/sync";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../src/lib/prisma";
 import { addDays, addMinutes, istDateTime, parseSheetDate, parseSheetTime, sheetDateTime } from "../src/lib/datetime";
 import { normalizePhone } from "../src/lib/phone";
 import { uniqueRef, refreshPatientStats } from "../src/lib/serializers";
-
-const prisma = new PrismaClient();
 
 function arg(name: string) {
   const i = process.argv.indexOf(name);

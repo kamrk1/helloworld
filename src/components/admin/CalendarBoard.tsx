@@ -22,6 +22,7 @@ import { useToast } from "./Toast";
 import { AppointmentFormModal } from "./AppointmentFormModal";
 import { BlockFormModal } from "./BlockFormModal";
 import { EventDrawer } from "./EventDrawer";
+import { apiJson } from "@/lib/api-client";
 
 function snapDuration(minutes: number) {
   return ([30, 60, 90] as const).reduce((best, n) =>
@@ -85,7 +86,7 @@ function EventInner({ arg }: { arg: EventContentArg }) {
 }
 
 export function CalendarBoard() {
-  const { snapshot, upsertAppointment, fromCache, refreshing } = useAdminData();
+  const { snapshot, upsertAppointment, fromCache, refreshing, online } = useAdminData();
   const toast = useToast();
   const calRef = useRef<FullCalendar>(null);
   const [title, setTitle] = useState("");
@@ -172,14 +173,12 @@ export function CalendarBoard() {
     const endAt = new Date(start.getTime() + durationMin * 60_000).toISOString();
     upsertAppointment({ ...prev, startAt, endAt, durationMin });
     try {
-      const res = await fetch(`/api/admin/appointments/${id}`, {
+      const json = await apiJson<AppointmentDTO>(`/api/admin/appointments/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ startAt, durationMin }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Could not reschedule");
-      upsertAppointment(json as AppointmentDTO);
+      upsertAppointment(json);
       toast.push("Appointment moved");
     } catch (err) {
       upsertAppointment(prev);
@@ -190,36 +189,36 @@ export function CalendarBoard() {
 
   return (
     <div className="flex h-full flex-col bg-ivory">
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200/80 bg-white px-3 py-2.5 md:px-5">
-        <button className="btn-secondary px-3" onClick={() => go("today")}>
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200/80 bg-white px-3 py-2 md:px-5 md:py-2.5">
+        <button className="btn-secondary px-2.5 py-1.5 text-xs md:px-3 md:py-2 md:text-sm" onClick={() => go("today")}>
           Today
         </button>
         <div className="flex items-center">
-          <button className="btn-ghost px-2" onClick={() => go("prev")} aria-label="Previous">
+          <button className="btn-ghost px-1.5 md:px-2" onClick={() => go("prev")} aria-label="Previous">
             <ChevronLeft className="h-5 w-5" />
           </button>
-          <button className="btn-ghost px-2" onClick={() => go("next")} aria-label="Next">
+          <button className="btn-ghost px-1.5 md:px-2" onClick={() => go("next")} aria-label="Next">
             <ChevronRight className="h-5 w-5" />
           </button>
         </div>
-        <h1 className="min-w-0 flex-1 font-display text-lg font-semibold text-teal-dark md:text-xl">
+        <h1 className="min-w-0 flex-1 truncate font-display text-base font-semibold text-teal-dark md:text-xl">
           {title || "Calendar"}
         </h1>
         <div className="flex rounded-lg border border-slate-200 p-0.5">
           <button
-            className={`rounded-md px-3 py-1 text-xs font-semibold ${view === "timeGridWeek" ? "bg-teal text-white" : "text-slate-600"}`}
+            className={`rounded-md px-2.5 py-1 text-[11px] font-semibold md:px-3 md:text-xs ${view === "timeGridWeek" ? "bg-teal text-white" : "text-slate-600"}`}
             onClick={() => changeView("timeGridWeek")}
           >
             Week
           </button>
           <button
-            className={`rounded-md px-3 py-1 text-xs font-semibold ${view === "timeGridDay" ? "bg-teal text-white" : "text-slate-600"}`}
+            className={`rounded-md px-2.5 py-1 text-[11px] font-semibold md:px-3 md:text-xs ${view === "timeGridDay" ? "bg-teal text-white" : "text-slate-600"}`}
             onClick={() => changeView("timeGridDay")}
           >
             Day
           </button>
         </div>
-        <button className="btn-primary" onClick={() => setCreateStart(new Date())}>
+        <button className="btn-primary px-2.5 py-1.5 md:px-3.5 md:py-2" onClick={() => setCreateStart(new Date())}>
           <Plus className="h-4 w-4" />
           <span className="hidden sm:inline">Appointment</span>
         </button>
@@ -227,6 +226,11 @@ export function CalendarBoard() {
           <span className="hidden text-[11px] text-slate-400 lg:inline">Updating…</span>
         )}
       </div>
+      {!online && (
+        <div className="bg-amber-50 px-3 py-1.5 text-center text-[11px] font-medium text-amber-800 md:hidden">
+          Offline — showing last saved week. Edits need a connection.
+        </div>
+      )}
 
       <div className="min-h-0 flex-1 px-2 py-2 md:px-4 md:py-3">
         <div className="h-full overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-card">
@@ -255,7 +259,11 @@ export function CalendarBoard() {
             hiddenDays={CLINIC.closedWeekdays}
             slotLabelFormat={{ hour: "numeric", minute: "2-digit", hour12: true }}
             eventTimeFormat={{ hour: "numeric", minute: "2-digit", hour12: true }}
-            dayHeaderFormat={{ weekday: "short", day: "numeric" }}
+            dayHeaderFormat={
+              view === "timeGridDay"
+                ? { weekday: "long", month: "short", day: "numeric" }
+                : { weekday: "short", day: "numeric" }
+            }
             scrollTime="10:00:00"
             events={events}
             select={handleSelect}

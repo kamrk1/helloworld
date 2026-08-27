@@ -33,6 +33,10 @@ hosted.json
 # database
 *.db
 *.db-journal
+/backups
+
+# generated prisma (cloud client)
+/src/generated/cloud
 
 # vercel
 .vercel

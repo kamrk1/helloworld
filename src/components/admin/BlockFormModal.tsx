@@ -6,6 +6,7 @@ import { useAdminData } from "./AdminDataProvider";
 import { useToast } from "./Toast";
 import { toHHMMIST, toISODateIST } from "@/lib/datetime";
 import type { BlockDTO } from "@/lib/types";
+import { apiJson } from "@/lib/api-client";
 
 export function BlockFormModal({
   start,
@@ -37,14 +38,12 @@ export function BlockFormModal({
       ? new Date(`${date}T23:59:00+05:30`)
       : new Date(`${date}T${timeTo}:00+05:30`);
     try {
-      const res = await fetch("/api/admin/blocks", {
+      const json = await apiJson<BlockDTO>("/api/admin/blocks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ startAt: startAt.toISOString(), endAt: endAt.toISOString(), allDay, reason }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Could not create block");
-      upsertBlock(json as BlockDTO);
+      upsertBlock(json);
       toast.push("Clinic block saved");
       onClose();
     } catch (err) {

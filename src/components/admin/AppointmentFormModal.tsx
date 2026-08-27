@@ -8,6 +8,7 @@ import { useToast } from "./Toast";
 import { CLINIC } from "@/lib/clinic-config";
 import { toHHMMIST, toISODateIST } from "@/lib/datetime";
 import type { AppointmentDTO, PatientDTO } from "@/lib/types";
+import { apiJson } from "@/lib/api-client";
 
 export function AppointmentFormModal({
   start,
@@ -63,14 +64,12 @@ export function AppointmentFormModal({
       const url = appointment
         ? `/api/admin/appointments/${appointment.id}`
         : "/api/admin/appointments";
-      const res = await fetch(url, {
+      const json = await apiJson<AppointmentDTO>(url, {
         method: appointment ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Save failed");
-      upsertAppointment(json as AppointmentDTO);
+      upsertAppointment(json);
       const patient = snapshot.patients.find((p) => p.id === json.patientId);
       if (!patient) {
         upsertPatient({

@@ -12,6 +12,12 @@
     @apply bg-ivory text-slate-900 antialiased;
   }
 
+  @media (display-mode: standalone) {
+    body {
+      min-height: 100dvh;
+    }
+  }
+
   ::selection {
     background: #C9A35B33;
   }
@@ -88,6 +94,22 @@
 
 .fc .fc-timegrid-slot {
   height: 3rem;
+}
+
+@media (max-width: 768px) {
+  .fc .fc-timegrid-slot {
+    height: 2.35rem;
+  }
+
+  .fc .fc-col-header-cell-cushion {
+    padding-top: 0.35rem;
+    padding-bottom: 0.35rem;
+    font-size: 11px;
+  }
+
+  .fc .fc-event {
+    font-size: 11px;
+  }
 }
 
 .fc .fc-timegrid-slot-label {

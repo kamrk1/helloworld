@@ -7,6 +7,7 @@ import { useToast } from "./Toast";
 import type { AppointmentDTO, PrescriptionDTO } from "@/lib/types";
 import { formatDateLong, toISODateIST } from "@/lib/datetime";
 import { CLINIC } from "@/lib/clinic-config";
+import { apiJson } from "@/lib/api-client";
 
 export function PrescriptionModal({
   appointment,
@@ -46,22 +47,23 @@ export function PrescriptionModal({
   async function save(printAfter: boolean) {
     setBusy(true);
     try {
-      const res = await fetch(`/api/admin/appointments/${appointment.id}/prescription`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          complaints,
-          findings,
-          diagnosis,
-          medicines,
-          advice,
-          followupNote: followupNote || null,
-          followupDate: followupDate ? `${followupDate}T10:00:00+05:30` : null,
-        }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Save failed");
-      upsertAppointment(json.appointment as AppointmentDTO);
+      const json = await apiJson<{ appointment: AppointmentDTO }>(
+        `/api/admin/appointments/${appointment.id}/prescription`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            complaints,
+            findings,
+            diagnosis,
+            medicines,
+            advice,
+            followupNote: followupNote || null,
+            followupDate: followupDate ? `${followupDate}T10:00:00+05:30` : null,
+          }),
+        },
+      );
+      upsertAppointment(json.appointment);
       toast.push("Prescription saved");
       if (printAfter) {
         window.open(`/admin/print/rx/${appointment.id}?print=1`, "_blank");

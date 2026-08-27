@@ -6,6 +6,7 @@ import { formatDateTime } from "@/lib/datetime";
 import { displayPhone, waLink } from "@/lib/phone";
 import { MessageCircle } from "lucide-react";
 import type { AppointmentDTO } from "@/lib/types";
+import { apiJson } from "@/lib/api-client";
 
 export default function PendingPage() {
   const { snapshot, upsertAppointment } = useAdminData();
@@ -17,19 +18,18 @@ export default function PendingPage() {
   async function setStatus(a: AppointmentDTO, status: "APPROVED" | "REJECTED") {
     const prev = a;
     upsertAppointment({ ...a, status });
-    const res = await fetch(`/api/admin/appointments/${a.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
-    const json = await res.json();
-    if (!res.ok) {
+    try {
+      const json = await apiJson<AppointmentDTO>(`/api/admin/appointments/${a.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      upsertAppointment(json);
+      toast.push(status === "APPROVED" ? "Approved" : "Rejected");
+    } catch (err) {
       upsertAppointment(prev);
-      toast.push(json.error || "Failed", "err");
-      return;
+      toast.push(err instanceof Error ? err.message : "Failed", "err");
     }
-    upsertAppointment(json);
-    toast.push(status === "APPROVED" ? "Approved" : "Rejected");
   }
 
   return (

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CLINIC } from "@/lib/clinic-config";
+import { apiJson } from "@/lib/api-client";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,13 +16,11 @@ export default function LoginPage() {
     setBusy(true);
     setError("");
     try {
-      const res = await fetch("/api/auth/login", {
+      await apiJson("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Login failed");
       router.replace("/admin");
       router.refresh();
     } catch (err) {

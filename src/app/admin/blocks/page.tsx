@@ -3,6 +3,7 @@
 import { useAdminData } from "@/components/admin/AdminDataProvider";
 import { useToast } from "@/components/admin/Toast";
 import { formatDateTime } from "@/lib/datetime";
+import { apiFetch } from "@/lib/api-client";
 
 export default function BlocksPage() {
   const { snapshot, removeBlock } = useAdminData();
@@ -11,13 +12,17 @@ export default function BlocksPage() {
 
   async function remove(id: string) {
     if (!confirm("Remove this closure?")) return;
-    const res = await fetch(`/api/admin/blocks/${id}`, { method: "DELETE" });
-    if (!res.ok) {
-      toast.push("Could not remove", "err");
-      return;
+    try {
+      const res = await apiFetch(`/api/admin/blocks/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        toast.push("Could not remove", "err");
+        return;
+      }
+      removeBlock(id);
+      toast.push("Block removed");
+    } catch (err) {
+      toast.push(err instanceof Error ? err.message : "Could not remove", "err");
     }
-    removeBlock(id);
-    toast.push("Block removed");
   }
 
   return (

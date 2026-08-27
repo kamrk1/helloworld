@@ -28,7 +28,12 @@ if (existsSync("hosted.json")) {
     }
   }
 }
+loadEnvFile(".env");
 loadEnvFile(".env.local");
+
+function isPostgres(url) {
+  return /^(postgres(ql)?|prisma\+postgres):/i.test(String(url || ""));
+}
 
 const stub = `/** Filled at production build from hosted.json. Keep empty in git. */
 export const HOSTED: {
@@ -61,10 +66,19 @@ function run(cmd, args) {
   }
 }
 
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = "file:./clinic.db";
+}
+
 writeHostedValues();
 try {
   run("npx", ["prisma", "generate"]);
-  run("npx", ["prisma", "migrate", "deploy"]);
+  run("npx", ["prisma", "generate", "--schema", "prisma/cloud/schema.prisma"]);
+  if (isPostgres(process.env.DATABASE_URL)) {
+    run("npx", ["prisma", "migrate", "deploy", "--schema", "prisma/cloud/schema.prisma"]);
+  } else {
+    run("npx", ["prisma", "migrate", "deploy"]);
+  }
   run("npx", ["prisma", "db", "seed"]);
   run("npx", ["next", "build"]);
 } finally {

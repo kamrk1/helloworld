@@ -1,8 +1,6 @@
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../src/lib/prisma";
 import { CLINIC } from "../src/lib/clinic-config";
 import { addDays, addMinutes, getISTParts, istDateTime, startOfWeekMondayIST } from "../src/lib/datetime";
-
-const prisma = new PrismaClient();
 
 type SeedPatient = {
   phone: string;

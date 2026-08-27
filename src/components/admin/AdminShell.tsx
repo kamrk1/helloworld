@@ -13,6 +13,7 @@ import {
 import { useAdminData } from "./AdminDataProvider";
 import { CLINIC } from "@/lib/clinic-config";
 import { clsx } from "clsx";
+import { InstallHint } from "./InstallHint";
 
 const NAV = [
   { href: "/admin", label: "Calendar", icon: CalendarDays, exact: true },
@@ -25,7 +26,7 @@ const NAV = [
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { snapshot, refreshing } = useAdminData();
+  const { snapshot, refreshing, fromCache, online } = useAdminData();
   if (pathname.startsWith("/admin/print")) {
     return <>{children}</>;
   }
@@ -40,7 +41,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex h-dvh bg-ivory">
+    <div className="flex h-dvh bg-ivory pt-[env(safe-area-inset-top)]">
       <aside className="hidden w-60 shrink-0 flex-col border-r border-slate-200/80 bg-white md:flex">
         <div className="flex items-center gap-3 px-5 py-5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -83,7 +84,16 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
-        <div className="px-3 py-4">
+        <InstallHint />
+        <div className="px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2">
+          {!online && (
+            <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-medium leading-snug text-amber-800">
+              Offline — last saved calendar. Changes save when you’re back online.
+            </p>
+          )}
+          {online && fromCache && refreshing && (
+            <p className="mb-3 px-3 text-[11px] text-slate-400">Updating from cloud…</p>
+          )}
           <button onClick={logout} className="btn-ghost w-full justify-start text-slate-500">
             <LogOut className="h-4 w-4" />
             Sign out
@@ -98,20 +108,21 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             <img src="/logo.svg" alt="" className="h-8 w-8 rounded-lg" />
             <span className="font-display text-sm font-semibold text-teal-dark">SDC Admin</span>
           </div>
-          {refreshing && <span className="text-[11px] text-slate-400">Syncing…</span>}
+          {refreshing && <span className="text-[11px] text-slate-400">Updating…</span>}
+          {!online && <span className="text-[11px] font-semibold text-amber-700">Offline</span>}
         </header>
 
         <main
           className={clsx(
             "min-h-0 flex-1",
             isCalendar ? "overflow-hidden" : "overflow-y-auto",
-            "pb-16 md:pb-0",
+            "pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0",
           )}
         >
           {children}
         </main>
 
-        <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-slate-200 bg-white/95 backdrop-blur md:hidden">
+        <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
           {NAV.map((item) => {
             const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
             const Icon = item.icon;
