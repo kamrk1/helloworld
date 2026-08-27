@@ -1,7 +1,7 @@
 export function databaseUrl() {
-  return process.env.DATABASE_URL || "file:./clinic.db";
+  return process.env["DATABASE_URL"] || "file:./clinic.db";
 }
 
 export function isPostgresUrl(url = databaseUrl()) {
-  return /^(postgres(ql)?|prisma\+postgres):/i.test(url);
+  return /^(postgres(ql)?|prisma\+postgres|prisma):/i.test(url);
 }

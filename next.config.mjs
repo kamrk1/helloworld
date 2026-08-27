@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "fs";
+import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 
 const hosted = existsSync("./hosted.json")
   ? JSON.parse(readFileSync("./hosted.json", "utf8"))
@@ -12,7 +13,7 @@ for (const [key, value] of Object.entries(hosted)) {
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: "standalone",
+  ...(process.env.STANDALONE_OUTPUT === "1" ? { output: "standalone" } : {}),
   transpilePackages: [
     "@fullcalendar/core",
     "@fullcalendar/react",
@@ -24,7 +25,12 @@ const nextConfig = {
     outputFileTracingIncludes: {
       "/**": ["./src/generated/cloud/**/*"],
     },
-    serverComponentsExternalPackages: ["@prisma/client"],
+    serverComponentsExternalPackages: [
+      "@prisma/client",
+      ".prisma/client",
+      "@prisma/adapter-pg",
+      "pg",
+    ],
   },
   headers: async () => [
     {
@@ -42,3 +48,9 @@ const nextConfig = {
 };
 
 export default nextConfig;
+
+try {
+  initOpenNextCloudflareForDev();
+} catch (err) {
+  console.warn("OpenNext Cloudflare dev init skipped:", err instanceof Error ? err.message : err);
+}

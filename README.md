@@ -8,7 +8,7 @@ Clinic: **Shree Datta Dental Care** · Timezone: **Asia/Kolkata** · Hours: **10
 
 | Layer | Role |
 |-------|------|
-| Hosted Postgres (`DATABASE_URL` on Vercel) | Live clinic database. Bookings from any phone or desktop land here. |
+| Hosted Postgres (`DATABASE_URL` on the Worker) | Live clinic database. Bookings from any phone or desktop land here. |
 | Installed PWA / browser | Client. Calendar opens from the last snapshot in `localStorage`, then refreshes from the cloud. |
 | Local SQLite (`file:./clinic.db`) | Laptop-only fallback so `npm run dev` works with **no cloud credentials**. Not used in production. |
 
@@ -56,13 +56,50 @@ The calendar uses a **day** grid on a phone-sized viewport and **week** on deskt
 
 While offline, the last snapshot still paints. Creating or moving an appointment requires a network connection so every device stays on the same cloud copy.
 
-## Hosting (Vercel)
+## Hosting (Cloudflare Workers)
 
-Vercel serverless **cannot** use SQLite `file://`. Set `DATABASE_URL` to Postgres (`npx create-db@latest`, Prisma Postgres, or Neon), plus `ADMIN_PASSWORD` and `SESSION_SECRET` in the project env. `npm run build` runs cloud migrations and seeds only if the database is empty.
+Production target: **https://proud-truth-84df.kamrk1.workers.dev** — Cloudflare Worker named `proud-truth-84df` (OpenNext, Next.js Node runtime via `nodejs_compat`). `/` is public booking, `/login` and `/admin` are the clinic admin, and the PWA (`/manifest.webmanifest`, `/sw.js`, `start_url` `/admin`) stays on that HTTPS origin.
 
-That hosted database **is** the live clinic DB. The public URL is not a delayed copy: phones and desktops that open it (or the installed PWA) read and write the same rows.
+`@opennextjs/cloudflare` is pinned to **1.15.1** — the last adapter release that still declares a Next.js `^14.2.35` peer. `@latest` (1.20+) requires Next 15.5+/16 and would force a framework upgrade.
 
-Anonymous `vercel deploy --temporary` URLs expire in about an hour unless you open the claim URL and attach them to your Vercel account.
+Cloudflare Workers cannot open a raw Prisma query-engine TCP socket the way a Node host can. This app keeps the **same Prisma Postgres schema and seed** and talks to Postgres through `@prisma/adapter-pg` + `pg` (driver adapters). Do not rewrite the database to D1.
+
+```bash
+npm install
+cp .dev.vars.example .dev.vars   # for npm run preview only; gitignored
+# put the real Postgres URL, ADMIN_PASSWORD, SESSION_SECRET in .dev.vars
+
+npx wrangler login               # once, in a browser
+npx wrangler secret put DATABASE_URL      # existing Prisma Postgres URL
+npx wrangler secret put ADMIN_PASSWORD
+npx wrangler secret put SESSION_SECRET
+
+npm run deploy                   # OpenNext build + wrangler deploy to proud-truth-84df
+```
+
+That deploy overwrites the Hello World worker at **https://proud-truth-84df.kamrk1.workers.dev**.
+
+`npm run preview` builds the Worker and serves it locally in workerd (not `next dev`). Keep using `npm run dev` + SQLite for day-to-day UI work.
+
+### Cloudflare secrets / vars
+
+| Name | Kind | Required | Notes |
+|------|------|----------|--------|
+| `DATABASE_URL` | secret | yes | Existing Prisma Postgres URL (`postgresql://…@db.prisma.io:5432/postgres?sslmode=require`). Same database as before. |
+| `ADMIN_PASSWORD` | secret | yes | `/login` password |
+| `SESSION_SECRET` | secret | yes | HMAC for the session cookie |
+| `NEXTJS_ENV` | var (`wrangler.jsonc`) | no | Defaults to `production` |
+| `NEXT_PUBLIC_CLINIC_PHONE` | build env | no | Inlined at `next build`. Set in `.env` / `.env.local` before deploy. |
+| `NEXT_PUBLIC_CLINIC_ADDRESS` | build env | no | Same |
+| `NEXT_PUBLIC_REVIEW_URL` | build env | no | Same |
+
+If `pg` cannot reach Prisma Postgres from the Worker isolate (TCP/ssl), the next step is Cloudflare **Hyperdrive** in front of the same URL (`wrangler hyperdrive create` + a `hyperdrive` binding). Prisma Accelerate (`prisma://` HTTP) is another option. D1 is last resort and would drop this schema.
+
+Worker size limit is 3 MiB gzip on the free plan (10 MiB paid). If deploy fails on size, check the OpenNext output in `.open-next/`.
+
+### Node standalone / Vercel (optional)
+
+`npm run build:standalone` still produces a Node `output: "standalone"` build (cloudflared / a VPS). Vercel serverless **cannot** use SQLite `file://`. Set `DATABASE_URL` to Postgres plus `ADMIN_PASSWORD` and `SESSION_SECRET`. Anonymous `vercel deploy --temporary` URLs expire in about an hour unless you claim them.
 
 ### Free-tier notes
 
@@ -137,8 +174,11 @@ Files land in `backups/` (gitignored). Restore is a manual import; this is not a
 
 | Command | Purpose |
 |---------|---------|
-| `npm run dev` | Migrate + seed (first run) + Next.js dev server |
-| `npm run build` | Production build (Postgres when `DATABASE_URL` is postgres) |
+| `npm run dev` | Migrate + seed (first run) + Next.js dev server (SQLite or Postgres from `.env.local`) |
+| `npm run build` | `next build` (used by OpenNext) |
+| `npm run build:standalone` | Node standalone build (injects hosted env, migrate, seed) |
+| `npm run preview` | OpenNext build + local workerd preview |
+| `npm run deploy` | OpenNext build + deploy Worker `proud-truth-84df` |
 | `npm run db:seed` | Seed if the database is empty |
 | `npm run db:reset` | Drop the local SQLite database, remigrate, reseed |
 | `npm run import-csv` | Import Sheets CSV |
@@ -146,6 +186,6 @@ Files land in `backups/` (gitignored). Restore is a manual import; this is not a
 
 ## Stack
 
-Next.js 14 (App Router), TypeScript, Prisma (SQLite locally, Postgres in production), Tailwind CSS, FullCalendar (time grid + drag/resize/select), PWA (web app manifest + service worker).
+Next.js 14 (App Router), TypeScript, Prisma (SQLite locally, Postgres in production via driver adapter on Cloudflare Workers), Tailwind CSS, FullCalendar (time grid + drag/resize/select), PWA (web app manifest + service worker), OpenNext (`@opennextjs/cloudflare`) + Wrangler.
 
 Google Calendar sync and Drive Rx are later adapters — the hosted database is the source of truth.

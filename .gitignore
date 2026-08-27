@@ -38,6 +38,12 @@ hosted.json
 # generated prisma (cloud client)
 /src/generated/cloud
 
+# cloudflare / opennext
+.open-next
+.dev.vars
+.wrangler
+prisma/cloud/schema.workers.prisma
+
 # vercel
 .vercel
 

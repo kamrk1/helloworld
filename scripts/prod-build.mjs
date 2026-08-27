@@ -70,6 +70,8 @@ if (!process.env.DATABASE_URL) {
   process.env.DATABASE_URL = "file:./clinic.db";
 }
 
+process.env.STANDALONE_OUTPUT = "1";
+
 writeHostedValues();
 try {
   run("npx", ["prisma", "generate"]);

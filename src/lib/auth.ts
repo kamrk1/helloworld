@@ -13,7 +13,7 @@ const COOKIE = "sdc_session";
 const MAX_AGE = 60 * 60 * 24 * 7;
 
 function sessionSecret() {
-  const secret = process.env.SESSION_SECRET;
+  const secret = process.env["SESSION_SECRET"];
   if (!secret) {
     throw new Error("SESSION_SECRET is not set");
   }
@@ -88,7 +88,7 @@ export function clearSessionCookie() {
 }
 
 export function checkAdminPassword(password: string) {
-  const expected = process.env.ADMIN_PASSWORD;
+  const expected = process.env["ADMIN_PASSWORD"];
   if (!expected) {
     throw new Error("ADMIN_PASSWORD is not set");
   }
