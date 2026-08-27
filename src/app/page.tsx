@@ -66,9 +66,16 @@ export default function BookingPage() {
     setLoadingSlots(true);
     setTime("");
     fetch(`/api/slots?date=${date}`)
-      .then((r) => r.json())
+      .then(async (res) => {
+        const json = await res.json();
+        if (!res.ok) {
+          throw new Error(typeof json.error === "string" ? json.error : "Could not load slots");
+        }
+        return json as { date?: string; slots?: Slot[]; closed?: boolean; past?: boolean };
+      })
       .then((json) => {
         if (cancelled) return;
+        if (json.date && json.date !== date) return;
         setSlots(json.slots ?? []);
         setDayClosed(Boolean(json.closed));
         setDayPast(Boolean(json.past));
