@@ -6,6 +6,7 @@ const nextConfig = {
     "@fullcalendar/react",
     "@fullcalendar/timegrid",
     "@fullcalendar/interaction",
+    "@fullcalendar/luxon3",
   ],
 };
 

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
+import luxonPlugin from "@fullcalendar/luxon3";
 import type {
   DateSelectArg,
   EventClickArg,
@@ -14,7 +15,7 @@ import type {
 import type { EventResizeDoneArg } from "@fullcalendar/interaction";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { CLINIC } from "@/lib/clinic-config";
-import { durationMinutes } from "@/lib/datetime";
+import { durationMinutes, istDateTimeFromIsoDate } from "@/lib/datetime";
 import type { AppointmentDTO, BlockDTO } from "@/lib/types";
 import { useAdminData } from "./AdminDataProvider";
 import { useToast } from "./Toast";
@@ -26,6 +27,16 @@ function snapDuration(minutes: number) {
   return ([30, 60, 90] as const).reduce((best, n) =>
     Math.abs(n - minutes) < Math.abs(best - minutes) ? n : best,
   );
+}
+
+/** FullCalendar dateStr in a named zone may omit the offset; treat clock time as IST. */
+function fromCalendar(date: Date, dateStr?: string) {
+  if (dateStr) {
+    if (/[zZ]|[+-]\d{2}:\d{2}$/.test(dateStr)) return new Date(dateStr);
+    const m = dateStr.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
+    if (m) return istDateTimeFromIsoDate(m[1], m[2]);
+  }
+  return date;
 }
 
 function toEvents(appointments: AppointmentDTO[], blocks: BlockDTO[]): EventInput[] {
@@ -117,12 +128,14 @@ export function CalendarBoard() {
   }
 
   function handleSelect(info: DateSelectArg) {
-    const minutes = durationMinutes(info.start, info.end);
+    const start = fromCalendar(info.start, info.startStr);
+    const end = fromCalendar(info.end, info.endStr);
+    const minutes = durationMinutes(start, end);
     info.view.calendar.unselect();
     if (minutes <= CLINIC.slotMinutes) {
-      setCreateStart(info.start);
+      setCreateStart(start);
     } else {
-      setBlockRange({ start: info.start, end: info.end });
+      setBlockRange({ start, end });
     }
   }
 
@@ -150,10 +163,13 @@ export function CalendarBoard() {
       info.revert();
       return;
     }
-    const rawEnd = info.event.end ?? new Date(info.event.start.getTime() + prev.durationMin * 60_000);
-    const durationMin = snapDuration(durationMinutes(info.event.start, rawEnd));
-    const startAt = info.event.start.toISOString();
-    const endAt = new Date(info.event.start.getTime() + durationMin * 60_000).toISOString();
+    const start = fromCalendar(info.event.start, info.event.startStr);
+    const rawEnd = info.event.end
+      ? fromCalendar(info.event.end, info.event.endStr)
+      : new Date(start.getTime() + prev.durationMin * 60_000);
+    const durationMin = snapDuration(durationMinutes(start, rawEnd));
+    const startAt = start.toISOString();
+    const endAt = new Date(start.getTime() + durationMin * 60_000).toISOString();
     upsertAppointment({ ...prev, startAt, endAt, durationMin });
     try {
       const res = await fetch(`/api/admin/appointments/${id}`, {
@@ -216,7 +232,7 @@ export function CalendarBoard() {
         <div className="h-full overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-card">
           <FullCalendar
             ref={calRef}
-            plugins={[timeGridPlugin, interactionPlugin]}
+            plugins={[timeGridPlugin, interactionPlugin, luxonPlugin]}
             initialView={view}
             headerToolbar={false}
             timeZone={CLINIC.timezone}
