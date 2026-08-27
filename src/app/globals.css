@@ -3,27 +3,185 @@
 @tailwind utilities;
 
 @layer base {
+  html,
   body {
-    @apply bg-slate-100 text-slate-900;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    height: 100%;
+  }
+
+  body {
+    @apply bg-ivory text-slate-900 antialiased;
+  }
+
+  ::selection {
+    background: #C9A35B33;
   }
 }
 
 @layer components {
-  .input {
-    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm
-      placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200;
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition
+      focus:outline-none focus-visible:ring-2 focus-visible:ring-teal focus-visible:ring-offset-2
+      disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .btn-primary {
-    @apply rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm
-      hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2
-      disabled:cursor-not-allowed disabled:opacity-50;
+    @apply btn bg-teal text-white shadow-sm hover:bg-teal-dark;
+  }
+
+  .btn-gold {
+    @apply btn bg-gold text-teal-dark hover:bg-gold-dark hover:text-white;
   }
 
   .btn-secondary {
-    @apply rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm
-      hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-2
-      disabled:cursor-not-allowed disabled:opacity-50;
+    @apply btn border border-slate-200 bg-white text-slate-700 hover:bg-slate-50;
+  }
+
+  .btn-danger {
+    @apply btn bg-red-600 text-white hover:bg-red-700;
+  }
+
+  .btn-ghost {
+    @apply btn text-slate-600 hover:bg-slate-100;
+  }
+
+  .input {
+    @apply w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm
+      placeholder:text-slate-400 focus:border-teal focus:outline-none focus:ring-2 focus:ring-teal/20;
+  }
+
+  .label {
+    @apply mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500;
+  }
+
+  .card {
+    @apply rounded-2xl border border-slate-100 bg-white shadow-card;
+  }
+
+  .badge {
+    @apply inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide;
+  }
+}
+
+/* FullCalendar — Google Calendar-like chrome */
+.fc {
+  --fc-border-color: #e8ecec;
+  --fc-page-bg-color: #ffffff;
+  --fc-neutral-bg-color: #f7f5f2;
+  --fc-today-bg-color: #f3fafa;
+  --fc-now-indicator-color: #0e6b6f;
+  --fc-highlight-color: rgba(14, 107, 111, 0.08);
+  --fc-event-border-color: transparent;
+  --fc-small-font-size: 0.75rem;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  height: 100%;
+}
+
+.fc .fc-view-harness {
+  background: #fff;
+}
+
+.fc .fc-scrollgrid {
+  border-radius: 12px;
+  overflow: hidden;
+  border-color: #e5ebeb !important;
+}
+
+.fc .fc-timegrid-slot {
+  height: 3rem;
+}
+
+.fc .fc-timegrid-slot-label {
+  vertical-align: top;
+}
+
+.fc .fc-timegrid-slot-label-cushion {
+  @apply text-[11px] font-medium text-slate-400;
+}
+
+.fc .fc-col-header-cell-cushion {
+  @apply py-2 text-xs font-semibold uppercase tracking-wider text-slate-500;
+}
+
+.fc .fc-timegrid-col.fc-day-today {
+  background: #f3fafa !important;
+}
+
+.fc .fc-timegrid-now-indicator-line {
+  border-width: 2px;
+}
+
+.fc .fc-timegrid-now-indicator-arrow {
+  border-color: #0e6b6f;
+  border-top-color: transparent;
+  border-bottom-color: transparent;
+}
+
+.fc-theme-standard td,
+.fc-theme-standard th {
+  border-color: #eef1f1;
+}
+
+.fc .fc-event {
+  border: none !important;
+  border-radius: 6px !important;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06);
+  font-size: 12px;
+  padding: 1px 4px;
+}
+
+.fc .fc-event-main {
+  color: inherit;
+}
+
+.fc .evt-pending {
+  background: #c9a35b !important;
+  color: #3f2e12 !important;
+}
+
+.fc .evt-approved {
+  background: #0e6b6f !important;
+  color: #fff !important;
+}
+
+.fc .evt-confirmed {
+  background: #0a5558 !important;
+  color: #fff !important;
+}
+
+.fc .evt-rejected,
+.fc .evt-cancelled {
+  background: #cbd5e1 !important;
+  color: #475569 !important;
+  text-decoration: line-through;
+}
+
+.fc .evt-block {
+  background: repeating-linear-gradient(
+    -45deg,
+    #fecaca,
+    #fecaca 6px,
+    #fee2e2 6px,
+    #fee2e2 12px
+  ) !important;
+  color: #7f1d1d !important;
+  box-shadow: inset 0 0 0 1px #f87171;
+  border-radius: 4px !important;
+}
+
+.fc .fc-highlight {
+  background: rgba(14, 107, 111, 0.12) !important;
+}
+
+.fc .fc-bg-event {
+  opacity: 1;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
   }
 }

@@ -7,31 +7,65 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Asset {
+model Patient {
+  id            String        @id @default(cuid())
+  phone         String        @unique
+  name          String
+  email         String?
+  firstVisit    DateTime?
+  lastVisit     DateTime?
+  totalBookings Int           @default(0)
+  concerns      String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  appointments  Appointment[]
+}
+
+model Appointment {
+  id               String            @id @default(cuid())
+  ref              String            @unique
+  patientId        String
+  patient          Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  service          String
+  startAt          DateTime
+  endAt            DateTime
+  durationMin      Int               @default(30)
+  notes            String?
+  status           String            @default("PENDING")
+  googleCalEventId String?
+  rxLink           String?
+  followupDate     DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  prescription     Prescription?
+
+  @@index([startAt])
+  @@index([endAt])
+  @@index([status])
+  @@index([followupDate])
+}
+
+model Prescription {
+  id            String      @id @default(cuid())
+  appointmentId String      @unique
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  complaints    String
+  findings      String
+  diagnosis     String
+  medicines     String
+  advice        String
+  followupNote  String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model ClinicBlock {
   id        String   @id @default(cuid())
-  name      String
-  category  String
-  currency  String   @default("INR")
-  notes     String?
-
-  value Float @default(0)
-
-  bankName    String?
-  accountType String?
-
-  symbol         String?
-  quantity       Float?
-  purchasePrice  Float?
-  currentPrice   Float?
-  fees           Float?    @default(0)
-  exchange       String?
-  lastRevaluedAt DateTime?
-
-  principal           Float?
-  interestRate        Float?
-  startDate           DateTime?
-  monthlyContribution Float?
-
+  startAt   DateTime
+  endAt     DateTime
+  allDay    Boolean  @default(false)
+  reason    String?
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+
+  @@index([startAt, endAt])
 }

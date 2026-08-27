@@ -1,109 +1,92 @@
-# Net Worth Calculator
+# Shree Datta Dental Care — Clinic Admin
 
-A production-grade personal net worth tracker with full CRUD for cash, Indian and foreign equities, savings, bank accounts, and Provident Fund (PF) with mark-to-market calculations.
+Calendar-first clinic admin that replaces the old Google Apps Script + Sheets CRM. Appointments, patients, and clinic closures live in a **local SQLite database**. Google Calendar and Drive are not required.
 
-## Features
+Clinic: **Shree Datta Dental Care** · Timezone: **Asia/Kolkata** · Hours: **10:00–20:00**, Sunday closed, 30-minute slots.
 
-- **Asset categories**: Cash, Savings, Bank Accounts (Savings, Current, FD, RD, NRE, NRO), PF, Indian Equity, Foreign Equity
-- **CRUD operations**: Add, edit, delete, and list all assets via REST API and web UI
-- **Dashboard**: Overall net worth in INR with category-wise breakdown and percentage allocation
-- **PF MTM**: Auto-calculated PF value using compound monthly interest from principal, annual rate, start date, and monthly contributions
-- **Equity revaluation**: Fetch live prices from Yahoo Finance (free) — revalue individual holdings or all equities at once
-- **Fees support**: Brokerage and transaction fees deducted from equity valuations
-- **Multi-currency**: Track assets in INR, USD, EUR, GBP, SGD, AED, JPY with live FX conversion via Frankfurter API
-
-## Tech Stack
-
-- **Frontend**: Next.js 14, React, Tailwind CSS
-- **Backend**: Next.js API Routes
-- **Database**: SQLite via Prisma ORM
-- **Validation**: Zod
-- **Market data**: Yahoo Finance (equities), Frankfurter (FX rates)
-
-## Quick Start
+## Quick start
 
 ```bash
-# Install dependencies
 npm install
-
-# Set up database
-cp .env.example .env   # or use the included .env
-npx prisma migrate dev
-
-# Run development server
+cp .env.example .env   # then set ADMIN_PASSWORD (and SESSION_SECRET in production)
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+`npm run dev` creates `.env` from the example if it is missing, runs Prisma migrations, and **seeds sample data on first run**.
 
-## API Endpoints
+Open:
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/assets` | List all assets |
-| POST | `/api/assets` | Create asset |
-| GET | `/api/assets/:id` | Get single asset |
-| PUT | `/api/assets/:id` | Update asset |
-| DELETE | `/api/assets/:id` | Delete asset |
-| POST | `/api/assets/revalue` | Revalue equities (optional `assetIds` or `category`) |
-| GET | `/api/summary` | Net worth summary with category totals |
+- Public booking: [http://localhost:3000](http://localhost:3000)
+- Admin calendar: [http://localhost:3000/admin](http://localhost:3000/admin) (redirects to `/login`)
 
-## Docker
+Default local password from `.env.example` is `changeme`. Change it.
+
+The calendar paints immediately from the last snapshot in `localStorage`, then refreshes from the API. Seeded appointments fill the current week so the grid is not empty.
+
+## Environment variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | yes | SQLite path, e.g. `file:./clinic.db` |
+| `ADMIN_PASSWORD` | yes | Password for `/login`. Stored as an httpOnly session cookie. |
+| `SESSION_SECRET` | yes | HMAC secret for the session cookie. Use a long random string in production. |
+| `NEXT_PUBLIC_REVIEW_URL` | no | Shown on the appointment panel (Google review link). |
+| `NEXT_PUBLIC_CLINIC_PHONE` | no | 10-digit number shown on the public page. |
+| `NEXT_PUBLIC_CLINIC_ADDRESS` | no | Printed on prescriptions. |
+
+No Google Apps Script, no `script.google.com`, no hardcoded production secrets.
+
+## What you can do
+
+**Calendar (default admin home)** — Google Calendar-like week/day grid:
+
+- Drag an appointment to reschedule (persists immediately, reverts on conflict).
+- Resize to 30 / 60 / 90 minutes.
+- Click an empty 30-minute slot to book an **approved** visit (patient typeahead by name/phone).
+- Click-drag a longer range to create a **clinic block**. Blocked times cannot be booked.
+- Click an event for patient details, status actions, WhatsApp (`wa.me/91…`), call, Rx, follow-up.
+
+**Other admin views:** Patients, Follow-ups (overdue / imminent / this week), Pending approvals, Closures.
+
+**Public booking** creates `PENDING` visits. Admin-created visits are `APPROVED`.
+
+**Prescriptions** are stored locally and opened as a printable page (`Save as PDF` from the browser). Google Drive is not used. `googleCalEventId` is a stub field only.
+
+## Statuses
+
+`PENDING` → `APPROVED` → `CONFIRMED`, or `REJECTED` / `CANCELLED`.
+
+## CSV import (old Sheets export)
+
+Dates are `dd-MMM-yyyy` (e.g. `27-Aug-2026`), times `h:mm a` (e.g. `10:30 AM`), timezone Asia/Kolkata.
+
+**Appointments columns:** `Timestamp, Ref, Patient Name, Phone, Email, Service, Date, Time, Notes, Status, CalEvent, RxLink, FollowupDate`
+
+**Patients columns:** `Phone, Name, Email, First Booking, Last Booking, Total Bookings, Services`
+
+**Clinic Closure columns:** `ID, From Date, To Date, Reason, Created At, Time From, Time To`  
+If `Time From` / `Time To` are empty, the whole day is closed. A date range is expanded per day.
 
 ```bash
-docker build -t networth-calculator .
-docker run -p 3000:3000 -v networth-data:/app/prisma networth-calculator
+npm run import-csv -- --appointments ./samples/appointments.csv
+npm run import-csv -- --patients ./samples/patients.csv
+npm run import-csv -- --blocks ./samples/closures.csv
 ```
 
-## PF Calculation
+Sample files live in `samples/`.
 
-PF value is computed as mark-to-market using:
+## Scripts
 
-- Principal balance at start date
-- Annual interest rate (compounded monthly)
-- Monthly employee + employer contributions
+| Command | Purpose |
+|---------|---------|
+| `npm run dev` | Migrate + seed (first run) + Next.js dev server |
+| `npm run build` | Production build |
+| `npm run db:seed` | Seed if the database is empty |
+| `npm run db:reset` | Drop SQLite, remigrate, reseed |
+| `npm run import-csv` | Import Sheets CSV |
 
-Formula: `FV = P(1+r)^n + PMT × [(1+r)^n − 1] / r` where `r` = monthly rate, `n` = months elapsed.
+## Stack
 
-## Equity Revaluation
+Next.js 14 (App Router), TypeScript, Prisma + SQLite, Tailwind CSS, FullCalendar (time grid + drag/resize/select).
 
-Indian stocks use Yahoo Finance suffixes: `.NS` (NSE), `.BO` (BSE). Foreign stocks use standard tickers. Value = `(quantity × currentPrice) − fees`.
-
-## Deploy for Mobile Access
-
-### Option 1: Render (recommended — free, persistent data)
-
-1. Push this repo to GitHub (already on `cursor/net-worth-calculator-5058`)
-2. Go to [render.com](https://render.com) → **New** → **Blueprint**
-3. Connect your GitHub repo — Render reads `render.yaml` automatically
-4. Click **Apply** — you get a public URL like `https://networth-calculator.onrender.com`
-5. Open that URL on your phone (works on any mobile browser)
-
-### Option 2: Vercel (requires external database)
-
-SQLite does not persist on Vercel serverless. Use [Render](#option-1-render--recommended--free-persistent-data) instead, or connect a [Neon Postgres](https://neon.tech) database and update `DATABASE_URL`.
-
-```bash
-npx vercel --prod
-```
-
-### Option 3: Docker (VPS / Railway / Fly.io)
-
-```bash
-docker build -t networth-calculator .
-docker run -p 3000:3000 -v networth-data:/app/prisma networth-calculator
-```
-
-Access at `http://<your-server-ip>:3000` on mobile (use HTTPS via a reverse proxy for production).
-
-## Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DATABASE_URL` | `file:./dev.db` | SQLite database path |
-
-## Production Notes
-
-- SQLite is suitable for single-user deployments; switch `provider` to `postgresql` in `prisma/schema.prisma` for multi-user production
-- Yahoo Finance and Frankfurter are free public APIs with rate limits — revalue on demand rather than on a schedule
-- Data persists in the SQLite file at the path specified by `DATABASE_URL`
+Google Calendar sync and Drive Rx are later adapters — this app is the source of truth.

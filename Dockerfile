@@ -10,12 +10,14 @@ RUN npm ci
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-ENV DATABASE_URL="file:./prisma/prod.db"
-RUN npx prisma generate && npx prisma migrate deploy && npm run build
+ENV DATABASE_URL="file:./prisma/clinic.db"
+ENV ADMIN_PASSWORD="changeme"
+ENV SESSION_SECRET="build-time-session-secret"
+RUN npx prisma generate && npx prisma migrate deploy && npx prisma db seed && npm run build
 
 FROM base AS runner
 ENV NODE_ENV=production
-ENV DATABASE_URL="file:./prisma/prod.db"
+ENV DATABASE_URL="file:./prisma/clinic.db"
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./

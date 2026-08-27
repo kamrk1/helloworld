@@ -1,0 +1,2 @@
+Timestamp,Ref,Patient Name,Phone,Email,Service,Date,Time,Notes,Status,CalEvent,RxLink,FollowupDate
+27-Aug-2026 09:12 AM,SDC-IMP-001,Sample Patient,9999900001,sample@example.com,Consultation,27-Aug-2026,10:00 AM,Imported example,PENDING,,,
