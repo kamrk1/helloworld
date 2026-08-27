@@ -1,4 +1,4 @@
-const VERSION = "sdc-pwa-v1";
+const VERSION = "sdc-pwa-v2";
 const PRECACHE = [
   "/",
   "/login",
@@ -15,8 +15,8 @@ self.addEventListener("install", (event) => {
     caches
       .open(VERSION)
       .then((cache) => cache.addAll(PRECACHE))
-      .then(() => self.skipWaiting())
-      .catch(() => self.skipWaiting()),
+      .catch(() => undefined)
+      .then(() => self.skipWaiting()),
   );
 });
 
@@ -42,51 +42,66 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (req.mode === "navigate") {
-    event.respondWith(
-      fetch(req)
-        .then((res) => {
-          const copy = res.clone();
-          caches.open(VERSION).then((cache) => cache.put(req, copy));
-          return res;
-        })
-        .catch(async () => {
-          const cached = await caches.match(req);
-          return cached || caches.match("/offline.html");
-        }),
-    );
+    event.respondWith(navigate(req));
     return;
   }
 
-  event.respondWith(
-    caches.match(req).then((cached) => {
-      const fetched = fetch(req)
-        .then((res) => {
-          if (res.ok) {
-            const copy = res.clone();
-            caches.open(VERSION).then((cache) => cache.put(req, copy));
-          }
-          return res;
-        })
-        .catch(() => cached);
-      return cached || fetched;
-    }),
-  );
+  event.respondWith(staleWhileRevalidate(req));
 });
+
+function fallback(status = 503) {
+  return new Response("", { status, statusText: "offline" });
+}
 
 async function networkFirst(req) {
   try {
     const res = await fetch(req);
     if (res.ok) {
-      const copy = res.clone();
-      caches.open(VERSION).then((cache) => cache.put(req, copy));
+      const cache = await caches.open(VERSION);
+      await cache.put(req, res.clone());
     }
     return res;
   } catch {
     const cached = await caches.match(req);
-    if (cached) return cached;
-    return new Response(JSON.stringify({ error: "offline" }), {
-      status: 503,
-      headers: { "Content-Type": "application/json" },
-    });
+    return (
+      cached ||
+      new Response(JSON.stringify({ error: "offline" }), {
+        status: 503,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
   }
+}
+
+async function navigate(req) {
+  try {
+    const res = await fetch(req);
+    if (res.ok) {
+      const cache = await caches.open(VERSION);
+      await cache.put(req, res.clone());
+    }
+    return res;
+  } catch {
+    const cached = (await caches.match(req)) || (await caches.match("/offline.html"));
+    return cached || fallback();
+  }
+}
+
+async function staleWhileRevalidate(req) {
+  const cached = await caches.match(req);
+  const fetched = fetch(req)
+    .then(async (res) => {
+      if (res.ok) {
+        const cache = await caches.open(VERSION);
+        await cache.put(req, res.clone());
+      }
+      return res;
+    })
+    .catch(() => undefined);
+
+  if (cached) {
+    void fetched;
+    return cached;
+  }
+  return (await fetched) || fallback();
 }
