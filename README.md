@@ -56,6 +56,32 @@ The calendar uses a **day** grid on a phone-sized viewport and **week** on deskt
 
 While offline, the last snapshot still paints. Creating or moving an appointment requires a network connection so every device stays on the same cloud copy.
 
+## Android (Capacitor)
+
+The Android app is a **WebView shell** around the same live Worker. It is **Clinic Admin**, not public booking. Phone and desktop share the hosted Postgres database; the APK does not ship a second offline database.
+
+- App name: **SDC Clinic**
+- Application id: `care.shreedatta.clinic`
+- Start URL: `https://proud-truth-84df.kamrk1.workers.dev/admin` (same as the PWA `start_url`)
+
+The launcher opens the **staff calendar**. If there is no session cookie, the existing web app may redirect `/admin` → `/login` once; after sign-in it returns to `/admin`. Do not point Capacitor at `/` (public booking) or `/login`.
+
+```bash
+npm install
+npx cap sync android
+```
+
+Then open the project in Android Studio (`npm run cap:android`) and run on a device/emulator, or:
+
+```bash
+cd android
+./gradlew assembleDebug
+```
+
+The debug APK lands at `android/app/build/outputs/apk/debug/app-debug.apk` (gitignored). You need the Android SDK (`ANDROID_HOME`) and Java 21. After changing `capacitor.config.ts` or files in `www/`, run `npx cap sync android` again.
+
+If the clinic host is down, the WebView shows `www/error.html` instead of a blank screen. `allowNavigation` is limited to `proud-truth-84df.kamrk1.workers.dev` so the `/login` redirect still works.
+
 ## Hosting (Cloudflare Workers)
 
 Production target: **https://proud-truth-84df.kamrk1.workers.dev** — Cloudflare Worker named `proud-truth-84df` (OpenNext, Next.js Node runtime via `nodejs_compat`). `/` is public booking, `/login` and `/admin` are the clinic admin, and the PWA (`/manifest.webmanifest`, `/sw.js`, `start_url` `/admin`) stays on that HTTPS origin.
@@ -185,9 +211,11 @@ Files land in `backups/` (gitignored). Restore is a manual import; this is not a
 | `npm run db:reset` | Drop the local SQLite database, remigrate, reseed |
 | `npm run import-csv` | Import Sheets CSV |
 | `npm run backup` | JSON snapshot of the connected database |
+| `npm run cap:sync` | Copy `www/` + Capacitor config into the Android project |
+| `npm run cap:android` | Open the Android project in Android Studio |
 
 ## Stack
 
-Next.js 14 (App Router), TypeScript, Prisma (SQLite locally, Postgres in production via driver adapter on Cloudflare Workers), Tailwind CSS, FullCalendar (time grid + drag/resize/select), PWA (web app manifest + service worker), OpenNext (`@opennextjs/cloudflare`) + Wrangler.
+Next.js 14 (App Router), TypeScript, Prisma (SQLite locally, Postgres in production via driver adapter on Cloudflare Workers), Tailwind CSS, FullCalendar (time grid + drag/resize/select), PWA (web app manifest + service worker), OpenNext (`@opennextjs/cloudflare`) + Wrangler, Capacitor 7 Android WebView shell (`server.url` → `/admin`).
 
 Google Calendar sync and Drive Rx are later adapters — the hosted database is the source of truth.

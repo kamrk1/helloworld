@@ -1,5 +1,5 @@
 import { deflateSync } from "zlib";
-import { mkdirSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, writeFileSync } from "fs";
 import path from "path";
 
 function crc32(buf) {
@@ -118,4 +118,67 @@ const files = [
 for (const [name, size, maskable] of files) {
   writeFileSync(path.join(dir, name), makePng(size, size, paintIcon(maskable)));
   console.log("wrote", name);
+}
+
+const resources = path.join(process.cwd(), "resources");
+mkdirSync(resources, { recursive: true });
+writeFileSync(path.join(resources, "icon.png"), makePng(1024, 1024, paintIcon(true)));
+console.log("wrote resources/icon.png");
+
+function writeSplash(file, width, height) {
+  const icon = Math.min(512, Math.floor(Math.min(width, height) * 0.28));
+  const paintIconFn = paintIcon(false);
+  const png = makePng(width, height, (x, y) => {
+    const left = Math.floor((width - icon) / 2);
+    const top = Math.floor((height - icon) / 2);
+    if (x >= left && x < left + icon && y >= top && y < top + icon) {
+      return paintIconFn(x - left, y - top, icon, icon);
+    }
+    return [247, 245, 242, 255];
+  });
+  mkdirSync(path.dirname(file), { recursive: true });
+  writeFileSync(file, png);
+  console.log("wrote", path.relative(process.cwd(), file));
+}
+
+const androidRes = path.join(process.cwd(), "android", "app", "src", "main", "res");
+if (existsSync(androidRes)) {
+  const launchers = [
+    ["mipmap-mdpi", 48, 108],
+    ["mipmap-hdpi", 72, 162],
+    ["mipmap-xhdpi", 96, 216],
+    ["mipmap-xxhdpi", 144, 324],
+    ["mipmap-xxxhdpi", 192, 432],
+  ];
+  for (const [folder, launcher, foreground] of launchers) {
+    const folderPath = path.join(androidRes, folder);
+    mkdirSync(folderPath, { recursive: true });
+    const square = makePng(launcher, launcher, paintIcon(false));
+    writeFileSync(path.join(folderPath, "ic_launcher.png"), square);
+    writeFileSync(path.join(folderPath, "ic_launcher_round.png"), square);
+    writeFileSync(
+      path.join(folderPath, "ic_launcher_foreground.png"),
+      makePng(foreground, foreground, paintIcon(true)),
+    );
+    console.log("wrote", folder, "launcher icons");
+  }
+
+  writeSplash(path.join(androidRes, "drawable", "splash.png"), 480, 320);
+  const port = [
+    ["drawable-port-mdpi", 320, 480],
+    ["drawable-port-hdpi", 480, 800],
+    ["drawable-port-xhdpi", 720, 1280],
+    ["drawable-port-xxhdpi", 960, 1600],
+    ["drawable-port-xxxhdpi", 1280, 1920],
+  ];
+  const land = [
+    ["drawable-land-mdpi", 480, 320],
+    ["drawable-land-hdpi", 800, 480],
+    ["drawable-land-xhdpi", 1280, 720],
+    ["drawable-land-xxhdpi", 1600, 960],
+    ["drawable-land-xxxhdpi", 1920, 1280],
+  ];
+  for (const [folder, w, h] of [...port, ...land]) {
+    writeSplash(path.join(androidRes, folder, "splash.png"), w, h);
+  }
 }

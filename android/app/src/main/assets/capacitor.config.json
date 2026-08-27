@@ -1,0 +1,19 @@
+{
+	"appId": "care.shreedatta.clinic",
+	"appName": "SDC Clinic",
+	"webDir": "www",
+	"backgroundColor": "#F7F5F2",
+	"android": {
+		"allowMixedContent": false,
+		"backgroundColor": "#F7F5F2"
+	},
+	"server": {
+		"url": "https://proud-truth-84df.kamrk1.workers.dev/admin",
+		"cleartext": false,
+		"androidScheme": "https",
+		"allowNavigation": [
+			"proud-truth-84df.kamrk1.workers.dev"
+		],
+		"errorPath": "error.html"
+	}
+}

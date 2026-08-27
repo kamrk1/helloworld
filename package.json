@@ -19,12 +19,16 @@
     "import-csv": "tsx scripts/import-csv.ts",
     "backup": "tsx scripts/backup.ts",
     "icons:pwa": "node scripts/generate-pwa-icons.mjs",
+    "cap:sync": "npx cap sync android",
+    "cap:android": "npx cap open android",
     "postinstall": "prisma generate && prisma generate --schema prisma/cloud/schema.prisma"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@capacitor/android": "^7.6.8",
+    "@capacitor/core": "^7.6.8",
     "@fullcalendar/core": "^6.1.15",
     "@fullcalendar/interaction": "^6.1.15",
     "@fullcalendar/luxon3": "^6.1.15",
@@ -46,6 +50,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@capacitor/cli": "^7.6.8",
     "@types/node": "^20",
     "@types/pg": "^8.23.1",
     "@types/react": "^18",
