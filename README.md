@@ -1,6 +1,6 @@
 # Shree Datta Dental Care — Clinic Admin
 
-Calendar-first clinic admin that replaces the old Google Apps Script + Sheets CRM. Appointments, patients, and clinic closures live in a **local SQLite database**. Google Calendar and Drive are not required.
+Calendar-first clinic admin that replaces the old Google Apps Script + Sheets CRM. Appointments, patients, and clinic closures live in **Postgres** (Prisma). Google Calendar and Drive are not required. SQLite `file://` will not persist on Vercel.
 
 Clinic: **Shree Datta Dental Care** · Timezone: **Asia/Kolkata** · Hours: **10:00–20:00**, Sunday closed, 30-minute slots.
 
@@ -8,7 +8,8 @@ Clinic: **Shree Datta Dental Care** · Timezone: **Asia/Kolkata** · Hours: **10
 
 ```bash
 npm install
-cp .env.example .env   # then set ADMIN_PASSWORD (and SESSION_SECRET in production)
+npx create-db@latest          # instant Postgres URL, no signup
+cp .env.example .env          # paste DATABASE_URL; set ADMIN_PASSWORD
 npm run dev
 ```
 
@@ -27,7 +28,7 @@ The calendar paints immediately from the last snapshot in `localStorage`, then r
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `DATABASE_URL` | yes | SQLite path, e.g. `file:./clinic.db` |
+| `DATABASE_URL` | yes | Postgres connection string (`postgresql://…`). `npx create-db@latest` provisions one. |
 | `ADMIN_PASSWORD` | yes | Password for `/login`. Stored as an httpOnly session cookie. |
 | `SESSION_SECRET` | yes | HMAC secret for the session cookie. Use a long random string in production. |
 | `NEXT_PUBLIC_REVIEW_URL` | no | Shown on the appointment panel (Google review link). |
@@ -82,11 +83,11 @@ Sample files live in `samples/`.
 | `npm run dev` | Migrate + seed (first run) + Next.js dev server |
 | `npm run build` | Production build |
 | `npm run db:seed` | Seed if the database is empty |
-| `npm run db:reset` | Drop SQLite, remigrate, reseed |
+| `npm run db:reset` | Drop the database, remigrate, reseed |
 | `npm run import-csv` | Import Sheets CSV |
 
 ## Stack
 
-Next.js 14 (App Router), TypeScript, Prisma + SQLite, Tailwind CSS, FullCalendar (time grid + drag/resize/select).
+Next.js 14 (App Router), TypeScript, Prisma + Postgres, Tailwind CSS, FullCalendar (time grid + drag/resize/select).
 
 Google Calendar sync and Drive Rx are later adapters — this app is the source of truth.

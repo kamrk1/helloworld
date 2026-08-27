@@ -1,39 +1,42 @@
 -- CreateTable
 CREATE TABLE "Patient" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "phone" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "email" TEXT,
-    "firstVisit" DATETIME,
-    "lastVisit" DATETIME,
+    "firstVisit" TIMESTAMP(3),
+    "lastVisit" TIMESTAMP(3),
     "totalBookings" INTEGER NOT NULL DEFAULT 0,
     "concerns" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Patient_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "Appointment" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "ref" TEXT NOT NULL,
     "patientId" TEXT NOT NULL,
     "service" TEXT NOT NULL,
-    "startAt" DATETIME NOT NULL,
-    "endAt" DATETIME NOT NULL,
+    "startAt" TIMESTAMP(3) NOT NULL,
+    "endAt" TIMESTAMP(3) NOT NULL,
     "durationMin" INTEGER NOT NULL DEFAULT 30,
     "notes" TEXT,
     "status" TEXT NOT NULL DEFAULT 'PENDING',
     "googleCalEventId" TEXT,
     "rxLink" TEXT,
-    "followupDate" DATETIME,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "Appointment_patientId_fkey" FOREIGN KEY ("patientId") REFERENCES "Patient" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    "followupDate" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Appointment_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "Prescription" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "appointmentId" TEXT NOT NULL,
     "complaints" TEXT NOT NULL,
     "findings" TEXT NOT NULL,
@@ -41,19 +44,22 @@ CREATE TABLE "Prescription" (
     "medicines" TEXT NOT NULL,
     "advice" TEXT NOT NULL,
     "followupNote" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "Prescription_appointmentId_fkey" FOREIGN KEY ("appointmentId") REFERENCES "Appointment" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Prescription_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "ClinicBlock" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "startAt" DATETIME NOT NULL,
-    "endAt" DATETIME NOT NULL,
+    "id" TEXT NOT NULL,
+    "startAt" TIMESTAMP(3) NOT NULL,
+    "endAt" TIMESTAMP(3) NOT NULL,
     "allDay" BOOLEAN NOT NULL DEFAULT false,
     "reason" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ClinicBlock_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -79,3 +85,9 @@ CREATE UNIQUE INDEX "Prescription_appointmentId_key" ON "Prescription"("appointm
 
 -- CreateIndex
 CREATE INDEX "ClinicBlock_startAt_endAt_idx" ON "ClinicBlock"("startAt", "endAt");
+
+-- AddForeignKey
+ALTER TABLE "Appointment" ADD CONSTRAINT "Appointment_patientId_fkey" FOREIGN KEY ("patientId") REFERENCES "Patient"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Prescription" ADD CONSTRAINT "Prescription_appointmentId_fkey" FOREIGN KEY ("appointmentId") REFERENCES "Appointment"("id") ON DELETE CASCADE ON UPDATE CASCADE;
