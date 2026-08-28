@@ -152,8 +152,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         </main>
 
         <nav
-          className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
-          style={{ display: "grid", gridTemplateColumns: `repeat(${nav.length}, minmax(0, 1fr))` }}
+          className="fixed inset-x-0 bottom-0 z-40 hidden border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur max-md:grid"
+          style={{ gridTemplateColumns: `repeat(${nav.length}, minmax(0, 1fr))` }}
         >
           {nav.map((item) => {
             const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);

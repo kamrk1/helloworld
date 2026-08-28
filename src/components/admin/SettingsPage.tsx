@@ -103,7 +103,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <form onSubmit={save} className="mx-auto max-w-3xl space-y-8 px-4 py-6">
+    <form onSubmit={save} className="mx-auto max-w-3xl space-y-8 px-4 py-6 pb-28 md:pb-8">
       <div>
         <h1 className="font-display text-2xl font-semibold text-teal-dark">Clinic settings</h1>
         <p className="mt-1 text-sm text-slate-500">
@@ -313,9 +313,11 @@ export default function SettingsPage() {
         </ul>
       </section>
 
-      <button className="btn-primary" disabled={busy} type="submit">
-        {busy ? "Saving…" : "Save settings"}
-      </button>
+      <div className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 -mx-4 border-t border-slate-100 bg-ivory/95 px-4 py-3 backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:px-0 md:py-0 md:backdrop-blur-none">
+        <button className="btn-primary w-full md:w-auto" disabled={busy} type="submit">
+          {busy ? "Saving…" : "Save settings"}
+        </button>
+      </div>
     </form>
   );
 }
