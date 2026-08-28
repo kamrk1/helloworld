@@ -167,8 +167,14 @@
   pointer-events: none;
 }
 
-.fc .fc-timegrid-event-harness {
+.fc .fc-timegrid-event-harness,
+.fc .fc-timegrid-event,
+.fc .fc-event,
+.fc .fc-event-main {
   pointer-events: auto;
+}
+
+.fc .fc-timegrid-event-harness {
   overflow: hidden;
   max-width: 100%;
 }

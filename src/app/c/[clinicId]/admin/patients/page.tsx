@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { MessageCircle, Phone, Search } from "lucide-react";
 import { useAdminData } from "@/components/admin/AdminDataProvider";
+import { OverlaySheet } from "@/components/admin/OverlaySheet";
 import { displayPhone, telLink, waLink } from "@/lib/phone";
 import { formatDateLong } from "@/lib/datetime";
 
@@ -77,36 +78,35 @@ export default function PatientsPage() {
       </div>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex justify-end">
-          <button className="absolute inset-0 bg-slate-900/30" onClick={() => setOpenId(null)} />
-          <aside className="relative h-full w-full max-w-md overflow-y-auto bg-white p-5 shadow-2xl">
-            <h2 className="font-display text-xl font-semibold text-teal-dark">{open.name}</h2>
-            <p className="mt-1 text-sm text-slate-500">{displayPhone(open.phone)}</p>
-            {open.email && <p className="text-sm text-slate-500">{open.email}</p>}
-            {open.concerns && <p className="mt-2 text-sm text-slate-600">{open.concerns}</p>}
-            <div className="mt-4 flex gap-2">
-              <a className="btn-primary flex-1" href={telLink(open.phone)}>
-                <Phone className="h-4 w-4" /> Call
+        <OverlaySheet
+          title={open.name}
+          subtitle={displayPhone(open.phone)}
+          onClose={() => setOpenId(null)}
+        >
+          {open.email && <p className="text-sm text-slate-500">{open.email}</p>}
+          {open.concerns && <p className="mt-2 text-sm text-slate-600">{open.concerns}</p>}
+          <div className="mt-4 flex gap-2">
+            <a className="btn-primary flex-1" href={telLink(open.phone)}>
+              <Phone className="h-4 w-4" /> Call
+            </a>
+            {clinic.flags.whatsapp && (
+              <a className="btn-secondary flex-1" href={waLink(open.phone)} target="_blank" rel="noreferrer">
+                <MessageCircle className="h-4 w-4" /> WhatsApp
               </a>
-              {clinic.flags.whatsapp && (
-                <a className="btn-secondary flex-1" href={waLink(open.phone)} target="_blank" rel="noreferrer">
-                  <MessageCircle className="h-4 w-4" /> WhatsApp
-                </a>
-              )}
-            </div>
-            <h3 className="mt-6 text-xs font-semibold uppercase tracking-wide text-slate-400">History</h3>
-            <ul className="mt-2 space-y-2">
-              {history.map((a) => (
-                <li key={a.id} className="rounded-xl border border-slate-100 px-3 py-2 text-sm">
-                  <div className="font-medium">{a.service}</div>
-                  <div className="text-xs text-slate-500">
-                    {formatDateLong(new Date(a.startAt))} · {a.status} · {a.ref}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </aside>
-        </div>
+            )}
+          </div>
+          <h3 className="mt-6 text-xs font-semibold uppercase tracking-wide text-slate-400">History</h3>
+          <ul className="mt-2 space-y-2">
+            {history.map((a) => (
+              <li key={a.id} className="rounded-xl border border-slate-100 px-3 py-2 text-sm">
+                <div className="font-medium">{a.service}</div>
+                <div className="text-xs text-slate-500">
+                  {formatDateLong(new Date(a.startAt))} · {a.status} · {a.ref}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </OverlaySheet>
       )}
     </div>
   );

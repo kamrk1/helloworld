@@ -12,6 +12,7 @@ import { useToast } from "./Toast";
 import { apiJson, apiFetch, errorFromHttpResponse } from "@/lib/api-client";
 import { AppointmentFormModal } from "./AppointmentFormModal";
 import { PrescriptionModal } from "./PrescriptionModal";
+import { useOverlayDismiss } from "./useOverlayDismiss";
 
 export function EventDrawer({
   appointment,
@@ -30,6 +31,8 @@ export function EventDrawer({
     appointment?.followupDate ? toISODateIST(new Date(appointment.followupDate)) : "",
   );
   const [busy, setBusy] = useState(false);
+
+  useOverlayDismiss(onClose);
 
   async function setStatus(status: AppointmentStatus) {
     if (!appointment) return;
@@ -113,10 +116,10 @@ export function EventDrawer({
 
   return (
     <>
-      <div className="fixed inset-0 z-40 flex items-end justify-end sm:items-stretch">
+      <div className="fixed inset-0 z-50 flex items-end justify-end sm:items-stretch">
         <button className="absolute inset-0 bg-slate-900/30" aria-label="Close" onClick={onClose} />
-        <aside className="relative flex max-h-[90dvh] w-full max-w-md flex-col rounded-t-2xl bg-white shadow-2xl sm:h-full sm:max-h-none sm:rounded-none">
-          <div className="flex items-start justify-between border-b border-slate-100 px-5 py-4">
+        <aside className="relative z-10 flex max-h-[90dvh] w-full max-w-md flex-col rounded-t-2xl bg-white shadow-2xl sm:h-full sm:max-h-none sm:rounded-none">
+          <div className="flex items-start justify-between border-b border-slate-100 px-5 pb-4 pt-[max(1rem,env(safe-area-inset-top))]">
             <div>
               <div className="font-display text-xl font-semibold text-teal-dark">
                 {live ? live.patientName : "Clinic closed"}
@@ -129,7 +132,7 @@ export function EventDrawer({
                     : ""}
               </div>
             </div>
-            <button className="btn-ghost px-2" onClick={onClose}>
+            <button className="btn-ghost shrink-0 px-2" onClick={onClose} type="button" aria-label="Close">
               <X className="h-5 w-5" />
             </button>
           </div>
@@ -218,6 +221,9 @@ export function EventDrawer({
           </div>
 
           <div className="flex flex-wrap gap-2 border-t border-slate-100 px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <button type="button" className="btn-secondary" onClick={onClose}>
+              Close
+            </button>
             {live && (
               <>
                 <button className="btn-secondary" onClick={() => setEditing(true)}>
@@ -234,7 +240,7 @@ export function EventDrawer({
               </>
             )}
             {block && (
-              <button className="btn-danger w-full" onClick={destroyBlock}>
+              <button className="btn-danger flex-1" onClick={destroyBlock}>
                 Remove block
               </button>
             )}

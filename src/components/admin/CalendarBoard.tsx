@@ -15,6 +15,7 @@ import type {
 import type { DateClickArg, EventResizeDoneArg } from "@fullcalendar/interaction";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { durationMinutes, fromCalendarDateClick, fromCalendarMarker } from "@/lib/datetime";
+import { overlaps } from "@/lib/slot-logic";
 import { hhmmDuration, snapToAllowed } from "@/lib/hours-label";
 import type { AppointmentDTO, BlockDTO } from "@/lib/types";
 import { useAdminData } from "./AdminDataProvider";
@@ -122,7 +123,41 @@ export function CalendarBoard() {
     // Single-slot clicks: clicked column date + dateStr time (Asia/Kolkata).
     // Do not use `new Date()` — that is "today" and ignores the Saturday cell.
     info.view.calendar.unselect();
-    setCreateStart(fromCalendarDateClick(info));
+    const target = info.jsEvent?.target;
+    const hitEvent =
+      target instanceof Element &&
+      Boolean(target.closest(".fc-event, .fc-timegrid-event, .fc-timegrid-event-harness"));
+
+    const clickAt = fromCalendarDateClick(info);
+    const slotEnd = new Date(clickAt.getTime() + clinic.slotMinutes * 60_000);
+
+    const block = snapshot.blocks.find((b) =>
+      overlaps(clickAt, slotEnd, new Date(b.startAt), new Date(b.endAt)),
+    );
+    if (block) {
+      setCreateStart(null);
+      setSelectedAppt(null);
+      setSelectedBlock(block);
+      return;
+    }
+
+    const appt = snapshot.appointments.find(
+      (a) =>
+        a.status !== "REJECTED" &&
+        a.status !== "CANCELLED" &&
+        overlaps(clickAt, slotEnd, new Date(a.startAt), new Date(a.endAt)),
+    );
+    if (appt) {
+      setCreateStart(null);
+      setSelectedBlock(null);
+      setSelectedAppt(appt);
+      return;
+    }
+
+    // Occupied visually but not in snapshot (or eventClick will follow) — never book a duplicate.
+    if (hitEvent) return;
+
+    setCreateStart(clickAt);
   }
 
   function handleSelect(info: DateSelectArg) {
@@ -138,6 +173,7 @@ export function CalendarBoard() {
   function handleEventClick(info: EventClickArg) {
     info.jsEvent.preventDefault();
     info.jsEvent.stopPropagation();
+    setCreateStart(null);
     const kind = info.event.extendedProps.kind;
     if (kind === "block") {
       setSelectedBlock(info.event.extendedProps.block as BlockDTO);
