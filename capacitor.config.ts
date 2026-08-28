@@ -3,10 +3,9 @@ import type { CapacitorConfig } from "@capacitor/cli";
 const LIVE_HOST = "proud-truth-84df.kamrk1.workers.dev";
 
 /**
- * Native WebView shell around the live clinic admin.
- * Start URL is /admin (same as the PWA). Do not start at / (public booking)
- * or /login. Unauthenticated first launch may redirect /admin → /login once,
- * then return to /admin after sign-in.
+ * Native WebView shell around the live multi-tenant clinic admin.
+ * Start URL is generic /login (clinic ID + password) so one APK serves every customer.
+ * Do not bake a single clinic slug into the start URL.
  */
 const config: CapacitorConfig = {
   appId: "care.shreedatta.clinic",
@@ -18,7 +17,7 @@ const config: CapacitorConfig = {
     backgroundColor: "#F7F5F2",
   },
   server: {
-    url: `https://${LIVE_HOST}/admin`,
+    url: `https://${LIVE_HOST}/login`,
     cleartext: false,
     androidScheme: "https",
     allowNavigation: [LIVE_HOST],

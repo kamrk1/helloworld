@@ -8,6 +8,7 @@ import { formatDateLong } from "@/lib/datetime";
 
 export default function PatientsPage() {
   const { snapshot } = useAdminData();
+  const clinic = snapshot.clinic;
   const [q, setQ] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
 
@@ -87,9 +88,11 @@ export default function PatientsPage() {
               <a className="btn-primary flex-1" href={telLink(open.phone)}>
                 <Phone className="h-4 w-4" /> Call
               </a>
-              <a className="btn-secondary flex-1" href={waLink(open.phone)} target="_blank" rel="noreferrer">
-                <MessageCircle className="h-4 w-4" /> WhatsApp
-              </a>
+              {clinic.flags.whatsapp && (
+                <a className="btn-secondary flex-1" href={waLink(open.phone)} target="_blank" rel="noreferrer">
+                  <MessageCircle className="h-4 w-4" /> WhatsApp
+                </a>
+              )}
             </div>
             <h3 className="mt-6 text-xs font-semibold uppercase tracking-wide text-slate-400">History</h3>
             <ul className="mt-2 space-y-2">

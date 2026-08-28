@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
+import { adminBase } from "@/lib/clinic-config";
 
-export function PrintTrigger({ auto }: { auto: boolean }) {
+export function PrintTrigger({ auto, clinicId }: { auto: boolean; clinicId: string }) {
   useEffect(() => {
     if (auto) {
       const t = setTimeout(() => window.print(), 250);
@@ -14,7 +15,7 @@ export function PrintTrigger({ auto }: { auto: boolean }) {
       <button className="btn-primary" onClick={() => window.print()}>
         Print / Save PDF
       </button>
-      <a className="btn-secondary" href="/admin">
+      <a className="btn-secondary" href={adminBase(clinicId)}>
         Back to calendar
       </a>
     </div>

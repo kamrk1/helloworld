@@ -14,6 +14,17 @@ async function main() {
     savedAt: new Date().toISOString(),
     source: isPostgresUrl() ? "postgres" : "sqlite",
     database: isPostgresUrl() ? "cloud" : databaseUrl(),
+    clinics: await prisma.clinic.findMany({
+      select: {
+        id: true,
+        name: true,
+        shortName: true,
+        enabled: true,
+        hoursOpen: true,
+        hoursClose: true,
+        flagsJson: true,
+      },
+    }),
     patients: await prisma.patient.findMany(),
     appointments: await prisma.appointment.findMany(),
     prescriptions: await prisma.prescription.findMany(),

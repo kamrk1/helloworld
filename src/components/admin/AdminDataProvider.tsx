@@ -2,7 +2,9 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { AppointmentDTO, BlockDTO, PatientDTO, SnapshotDTO } from "@/lib/types";
-import { SNAPSHOT_CACHE_KEY } from "@/lib/types";
+import { snapshotCacheKey } from "@/lib/types";
+import { DEFAULT_CLINIC } from "@/lib/clinic-config";
+import { toAdminClinic } from "@/lib/clinic-runtime";
 import {
   apiFetch,
   OfflineError,
@@ -11,11 +13,23 @@ import {
 } from "@/lib/api-client";
 import { useOnlineStatus } from "./useOnlineStatus";
 
-function readCache(): SnapshotDTO | null {
+function emptySnapshot(clinicId: string): SnapshotDTO {
+  return {
+    clinic: toAdminClinic({ ...DEFAULT_CLINIC, id: clinicId }),
+    appointments: [],
+    patients: [],
+    blocks: [],
+    serverTime: new Date(0).toISOString(),
+  };
+}
+
+function readCache(clinicId: string): SnapshotDTO | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = localStorage.getItem(SNAPSHOT_CACHE_KEY);
-    return raw ? (JSON.parse(raw) as SnapshotDTO) : null;
+    const raw = localStorage.getItem(snapshotCacheKey(clinicId));
+    const parsed = raw ? (JSON.parse(raw) as SnapshotDTO) : null;
+    if (!parsed?.clinic || parsed.clinic.id !== clinicId) return null;
+    return parsed;
   } catch {
     return null;
   }
@@ -23,7 +37,7 @@ function readCache(): SnapshotDTO | null {
 
 function writeCache(snapshot: SnapshotDTO) {
   try {
-    localStorage.setItem(SNAPSHOT_CACHE_KEY, JSON.stringify(snapshot));
+    localStorage.setItem(snapshotCacheKey(snapshot.clinic.id), JSON.stringify(snapshot));
   } catch {
     /* quota */
   }
@@ -44,17 +58,16 @@ type AdminData = {
   upsertPatient: (p: PatientDTO) => void;
 };
 
-const empty: SnapshotDTO = {
-  appointments: [],
-  patients: [],
-  blocks: [],
-  serverTime: new Date(0).toISOString(),
-};
-
 const Ctx = createContext<AdminData | null>(null);
 
-export function AdminDataProvider({ children }: { children: React.ReactNode }) {
-  const [snapshot, setSnapshotState] = useState<SnapshotDTO>(empty);
+export function AdminDataProvider({
+  clinicId,
+  children,
+}: {
+  clinicId: string;
+  children: React.ReactNode;
+}) {
+  const [snapshot, setSnapshotState] = useState<SnapshotDTO>(() => emptySnapshot(clinicId));
   const [fromCache, setFromCache] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [serverUnreachable, setServerUnreachable] = useState(false);
@@ -75,6 +88,9 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
       const res = await apiFetch("/api/admin/snapshot");
       if (!res.ok) throw new Error("Failed to load");
       const data = (await res.json()) as SnapshotDTO;
+      if (data.clinic?.id && data.clinic.id !== clinicId) {
+        throw new Error("Clinic mismatch");
+      }
       setSnapshot(data);
       setFromCache(false);
       setServerUnreachable(false);
@@ -84,17 +100,19 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setRefreshing(false);
     }
-  }, [setSnapshot]);
+  }, [clinicId, setSnapshot]);
 
   useEffect(() => {
-    const cached = readCache();
+    const cached = readCache(clinicId);
     if (cached) {
       setSnapshotState(cached);
       setFromCache(true);
+    } else {
+      setSnapshotState(emptySnapshot(clinicId));
     }
     setHydrated(true);
     void refresh();
-  }, [refresh]);
+  }, [clinicId, refresh]);
 
   const wasOnline = useRef(online);
   useEffect(() => {

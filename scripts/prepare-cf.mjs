@@ -78,7 +78,7 @@ if (/^(postgres(ql)?|prisma\+postgres):/i.test(db)) {
 } else {
   console.warn(
     "No Postgres DATABASE_URL in the build env. The Worker still needs wrangler secrets at runtime:\n" +
-      "  DATABASE_URL, ADMIN_PASSWORD, SESSION_SECRET",
+      "  DATABASE_URL, ADMIN_PASSWORD, SESSION_SECRET, PLATFORM_PASSWORD",
   );
 }
 

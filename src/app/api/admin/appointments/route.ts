@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/require-admin";
+import { requireClinic } from "@/lib/require-admin";
 import { appointmentCreateSchema } from "@/lib/validation";
 import { normalizePhone, isValidPhone } from "@/lib/phone";
 import { addMinutes } from "@/lib/datetime";
@@ -11,12 +11,12 @@ import {
   toAppointmentDTO,
   uniqueRef,
 } from "@/lib/serializers";
-import { CLINIC } from "@/lib/clinic-config";
 
 export async function GET() {
-  const denied = await requireAdmin();
-  if (denied) return denied;
+  const auth = await requireClinic();
+  if (auth.error) return auth.error;
   const rows = await prisma.appointment.findMany({
+    where: { clinicId: auth.clinic.id },
     include: appointmentInclude,
     orderBy: { startAt: "asc" },
   });
@@ -24,8 +24,9 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const denied = await requireAdmin();
-  if (denied) return denied;
+  const auth = await requireClinic();
+  if (auth.error) return auth.error;
+  const clinic = auth.clinic;
   try {
     const json = await req.json();
     const parsed = appointmentCreateSchema.safeParse(json);
@@ -37,14 +38,22 @@ export async function POST(req: Request) {
     if (Number.isNaN(startAt.getTime())) {
       return NextResponse.json({ error: "Invalid start time" }, { status: 400 });
     }
-    const durationMin = data.durationMin ?? CLINIC.defaultDuration;
+    const durationMin = data.durationMin ?? clinic.defaultDuration;
     const endAt = addMinutes(startAt, durationMin);
 
-    const conflict = await assertBookable({ startAt, endAt, allowOutsideHours: true });
+    const conflict = await assertBookable({ clinic, startAt, endAt, allowOutsideHours: true });
     if (conflict) return NextResponse.json({ error: conflict }, { status: 409 });
 
     let patientId = data.patientId;
-    if (!patientId) {
+    if (patientId) {
+      const owned = await prisma.patient.findFirst({
+        where: { id: patientId, clinicId: clinic.id },
+        select: { id: true },
+      });
+      if (!owned) {
+        return NextResponse.json({ error: "Patient not found" }, { status: 400 });
+      }
+    } else {
       if (!data.name || !data.phone) {
         return NextResponse.json({ error: "Patient name and phone are required" }, { status: 400 });
       }
@@ -53,8 +62,13 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Enter a 10-digit mobile number" }, { status: 400 });
       }
       const patient = await prisma.patient.upsert({
-        where: { phone },
-        create: { phone, name: data.name.trim(), email: data.email ? data.email : null },
+        where: { clinicId_phone: { clinicId: clinic.id, phone } },
+        create: {
+          clinicId: clinic.id,
+          phone,
+          name: data.name.trim(),
+          email: data.email ? data.email : null,
+        },
         update: { name: data.name.trim(), email: data.email ? data.email : undefined },
       });
       patientId = patient.id;
@@ -62,7 +76,8 @@ export async function POST(req: Request) {
 
     const created = await prisma.appointment.create({
       data: {
-        ref: await uniqueRef(startAt),
+        clinicId: clinic.id,
+        ref: await uniqueRef(clinic.id, startAt),
         patientId,
         service: data.service,
         startAt,

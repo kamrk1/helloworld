@@ -8,6 +8,9 @@ import { apiFetch, errorFromHttpResponse } from "@/lib/api-client";
 export default function BlocksPage() {
   const { snapshot, removeBlock } = useAdminData();
   const toast = useToast();
+  if (!snapshot.clinic.flags.closures) {
+    return <p className="px-4 py-10 text-center text-sm text-slate-400">Closures are not in this clinic package.</p>;
+  }
   const blocks = snapshot.blocks.slice().sort((a, b) => +new Date(a.startAt) - +new Date(b.startAt));
 
   async function remove(id: string) {

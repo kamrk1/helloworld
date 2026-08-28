@@ -31,8 +31,6 @@ export function EventDrawer({
   );
   const [busy, setBusy] = useState(false);
 
-  const reviewUrl = process.env.NEXT_PUBLIC_REVIEW_URL;
-
   async function setStatus(status: AppointmentStatus) {
     if (!appointment) return;
     setBusy(true);
@@ -109,6 +107,9 @@ export function EventDrawer({
   const live = appointment
     ? snapshot.appointments.find((a) => a.id === appointment.id) ?? appointment
     : undefined;
+  const clinic = snapshot.clinic;
+  const flags = clinic.flags;
+  const reviewUrl = clinic.reviewUrl;
 
   return (
     <>
@@ -150,17 +151,19 @@ export function EventDrawer({
                   <a className="btn-primary flex-1" href={telLink(live.phone)}>
                     <Phone className="h-4 w-4" /> Call
                   </a>
-                  <a
-                    className="btn-secondary flex-1"
-                    href={waLink(
-                      live.phone,
-                      `Hello ${live.patientName}, this is Shree Datta Dental Care regarding your appointment ${live.ref} on ${formatDateTime(new Date(live.startAt))}.`,
-                    )}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    <MessageCircle className="h-4 w-4" /> WhatsApp
-                  </a>
+                  {flags.whatsapp && (
+                    <a
+                      className="btn-secondary flex-1"
+                      href={waLink(
+                        live.phone,
+                        `Hello ${live.patientName}, this is ${clinic.name} regarding your appointment ${live.ref} on ${formatDateTime(new Date(live.startAt))}.`,
+                      )}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <MessageCircle className="h-4 w-4" /> WhatsApp
+                    </a>
+                  )}
                 </div>
                 {live.status === "PENDING" && (
                   <div className="flex gap-2">
@@ -182,6 +185,7 @@ export function EventDrawer({
                     Cancel visit
                   </button>
                 )}
+                {flags.followUps && (
                 <div>
                   <label className="label">Follow-up date</label>
                   <div className="flex gap-2">
@@ -196,6 +200,7 @@ export function EventDrawer({
                     </button>
                   </div>
                 </div>
+                )}
                 {reviewUrl && (
                   <a className="text-sm font-medium text-teal underline" href={reviewUrl} target="_blank" rel="noreferrer">
                     Request a Google review
@@ -218,9 +223,11 @@ export function EventDrawer({
                 <button className="btn-secondary" onClick={() => setEditing(true)}>
                   Edit
                 </button>
-                <button className="btn-gold" onClick={() => setRx(true)}>
-                  <Printer className="h-4 w-4" /> Rx
-                </button>
+                {flags.prescriptions && (
+                  <button className="btn-gold" onClick={() => setRx(true)}>
+                    <Printer className="h-4 w-4" /> Rx
+                  </button>
+                )}
                 <button className="btn-ghost ml-auto text-red-600" onClick={destroyAppt}>
                   <Trash2 className="h-4 w-4" /> Delete
                 </button>
@@ -235,7 +242,9 @@ export function EventDrawer({
         </aside>
       </div>
       {editing && live && <AppointmentFormModal appointment={live} onClose={() => setEditing(false)} />}
-      {rx && live && <PrescriptionModal appointment={live} onClose={() => setRx(false)} />}
+      {rx && live && flags.prescriptions && (
+        <PrescriptionModal appointment={live} onClose={() => setRx(false)} />
+      )}
     </>
   );
 }

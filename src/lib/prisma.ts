@@ -12,6 +12,7 @@ function applyHosted(key: keyof typeof HOSTED) {
 applyHosted("DATABASE_URL");
 applyHosted("ADMIN_PASSWORD");
 applyHosted("SESSION_SECRET");
+applyHosted("PLATFORM_PASSWORD");
 
 if (!process.env["DATABASE_URL"]) {
   process.env["DATABASE_URL"] = "file:./clinic.db";
@@ -64,7 +65,8 @@ function getPrismaUncached(): ClinicPrisma {
   return globalForPrisma.prisma;
 }
 
-const getPrismaCached = cache(getPrismaUncached);
+const getPrismaCached =
+  typeof cache === "function" ? cache(getPrismaUncached) : getPrismaUncached;
 
 export function getPrisma(): ClinicPrisma {
   return getPrismaCached();

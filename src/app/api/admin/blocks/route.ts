@@ -1,21 +1,24 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/require-admin";
+import { requireClinic } from "@/lib/require-admin";
 import { blockCreateSchema } from "@/lib/validation";
 import { toBlockDTO } from "@/lib/serializers";
 import { startOfDayIST, endOfDayIST } from "@/lib/datetime";
 import { findConflicts } from "@/lib/slots";
 
 export async function GET() {
-  const denied = await requireAdmin();
-  if (denied) return denied;
-  const rows = await prisma.clinicBlock.findMany({ orderBy: { startAt: "asc" } });
+  const auth = await requireClinic("closures");
+  if (auth.error) return auth.error;
+  const rows = await prisma.clinicBlock.findMany({
+    where: { clinicId: auth.clinic.id },
+    orderBy: { startAt: "asc" },
+  });
   return NextResponse.json(rows.map(toBlockDTO));
 }
 
 export async function POST(req: Request) {
-  const denied = await requireAdmin();
-  if (denied) return denied;
+  const auth = await requireClinic("closures");
+  if (auth.error) return auth.error;
   try {
     const json = await req.json();
     const parsed = blockCreateSchema.safeParse(json);
@@ -36,7 +39,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "End must be after start" }, { status: 400 });
     }
 
-    const conflicts = await findConflicts({ startAt, endAt });
+    const conflicts = await findConflicts({ clinicId: auth.clinic.id, startAt, endAt });
     if (conflicts.appointments.length) {
       return NextResponse.json(
         {
@@ -48,6 +51,7 @@ export async function POST(req: Request) {
 
     const created = await prisma.clinicBlock.create({
       data: {
+        clinicId: auth.clinic.id,
         startAt,
         endAt,
         allDay,

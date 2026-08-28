@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/require-admin";
+import { requireClinic } from "@/lib/require-admin";
 import { appointmentPatchSchema } from "@/lib/validation";
 import { addMinutes } from "@/lib/datetime";
 import { assertBookable } from "@/lib/slots";
@@ -10,10 +10,10 @@ import { normalizePhone, isValidPhone } from "@/lib/phone";
 type Ctx = { params: { id: string } };
 
 export async function GET(_req: Request, { params }: Ctx) {
-  const denied = await requireAdmin();
-  if (denied) return denied;
-  const row = await prisma.appointment.findUnique({
-    where: { id: params.id },
+  const auth = await requireClinic();
+  if (auth.error) return auth.error;
+  const row = await prisma.appointment.findFirst({
+    where: { id: params.id, clinicId: auth.clinic.id },
     include: { ...appointmentInclude, prescription: true },
   });
   if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -21,10 +21,11 @@ export async function GET(_req: Request, { params }: Ctx) {
 }
 
 export async function PATCH(req: Request, { params }: Ctx) {
-  const denied = await requireAdmin();
-  if (denied) return denied;
-  const existing = await prisma.appointment.findUnique({
-    where: { id: params.id },
+  const auth = await requireClinic();
+  if (auth.error) return auth.error;
+  const clinic = auth.clinic;
+  const existing = await prisma.appointment.findFirst({
+    where: { id: params.id, clinicId: clinic.id },
     include: { patient: true },
   });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -50,6 +51,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
 
     if (timeChanged && stillActive) {
       const conflict = await assertBookable({
+        clinic,
         startAt,
         endAt,
         excludeAppointmentId: existing.id,
@@ -104,9 +106,11 @@ export async function PATCH(req: Request, { params }: Ctx) {
 }
 
 export async function DELETE(_req: Request, { params }: Ctx) {
-  const denied = await requireAdmin();
-  if (denied) return denied;
-  const existing = await prisma.appointment.findUnique({ where: { id: params.id } });
+  const auth = await requireClinic();
+  if (auth.error) return auth.error;
+  const existing = await prisma.appointment.findFirst({
+    where: { id: params.id, clinicId: auth.clinic.id },
+  });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
   await prisma.appointment.delete({ where: { id: params.id } });
   await refreshPatientStats(existing.patientId);

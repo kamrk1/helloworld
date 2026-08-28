@@ -3,4 +3,5 @@ export const HOSTED: {
   DATABASE_URL?: string;
   ADMIN_PASSWORD?: string;
   SESSION_SECRET?: string;
+  PLATFORM_PASSWORD?: string;
 } = {};

@@ -1,8 +1,49 @@
-# Shree Datta Dental Care — Clinic Admin
+# Clinic Admin — multi-tenant product
 
 Calendar-first clinic admin (replaces the old Google Apps Script + Sheets CRM). **Phone and desktop are clients of the same hosted app.** The live source of truth is the **cloud database** (Prisma Postgres). Each device can install the app as a **PWA** and paints the last saved week instantly from a local cache. Writes go to the cloud when you are online.
 
-Clinic: **Shree Datta Dental Care** · Timezone: **Asia/Kolkata** · Hours: **10:00–20:00**, Sunday closed, 30-minute slots.
+The first customer is **Shree Datta Dental Care** (`clinicId` **`sdc`**): Asia/Kolkata, 10:00–20:00, Sunday closed, 30-minute slots. Additional clinics are separate tenants with their own slug, password, hours, and feature package.
+
+## Selling to multiple clinics
+
+The tenant key is a stable slug **`clinicId`** (for example `sdc`), not a display name. Isolation is by `clinicId` on every patient, appointment, block, and prescription. Phone numbers and appointment refs are unique **per clinic**. Subdomains are not required on `workers.dev` — App Router `/c/[clinicId]` plus a session that includes `clinicId` is enough.
+
+| Surface | URL |
+|---------|-----|
+| Public booking | `/c/{clinicId}` (alias `/c/{clinicId}/book`) |
+| Clinic staff login (password only) | `/c/{clinicId}/login` |
+| Clinic admin | `/c/{clinicId}/admin` (Settings at `/c/{clinicId}/admin/settings`) |
+| Generic staff login (one APK / PWA) | `/login` — clinic ID **and** password. Remembers last clinic ID in `localStorage`. Lands on that clinic’s admin. |
+| Platform operator | `/platform` (login at `/platform/login`) |
+
+**Compatibility shims for the first customer** (`DEFAULT_CLINIC_ID`, default `sdc`):
+
+- `/` → `/c/sdc`
+- `/admin`… → `/c/sdc/admin`… (or the signed-in clinic if the session already has a `clinicId`)
+- `/api/slots` and `/api/book` without a clinic id use `DEFAULT_CLINIC_ID` only. They never mix tenants.
+
+Do **not** treat generic `/login` as an sdc-only page — Capacitor starts there so one APK serves every customer.
+
+### Auth
+
+- Clinic password is stored as `passwordDigest` = HMAC-SHA256(`SESSION_SECRET`, `clinic:{id}:v1:{password}`) — same strength family as the session cookie, keyed per clinic.
+- Existing `ADMIN_PASSWORD` is migrated onto clinic `sdc` (hashed) on first boot. Keep the Worker secret so the backfill can run.
+- Platform password is `PLATFORM_PASSWORD` (demo default `platform-demo` if unset). Set a real secret in production: `npx wrangler secret put PLATFORM_PASSWORD`.
+- Session cookie `sdc_session` is path `/` and payload `{ role: "clinic", clinicId }` or `{ role: "platform" }`. Editing the URL cannot hop clinics; admin APIs use the session clinic only.
+
+### What clinic staff can edit (Settings)
+
+Name, logo (bytes in Postgres, served at `/api/clinics/{id}/logo`), hours, slot size, default duration, contact, brand colors, services, Rx letterhead.
+
+**Feature flags are not staff-editable.** The seller sets them from `/platform` when creating or patching a clinic: `publicBooking`, `pendingApproval`, `followUps`, `closures`, `prescriptions`, `whatsapp`. Flags live in JSON (`flagsJson`); adding a new flag later is a key + default in code, not a migration.
+
+### Create a clinic
+
+1. Sign in at `/platform/login`.
+2. Create slug, name, password, hours, default duration, and flags.
+3. Give the clinic `/c/{slug}/login` (or the generic `/login` + clinic ID) and `/c/{slug}` for public booking.
+
+Demo tenant used in verification: **`demo2`** (password `Demo2-Aug2026`), 09:00–17:00, 15-minute default, prescriptions off.
 
 ## How data works
 
@@ -29,10 +70,12 @@ npm run dev
 
 Open:
 
-- Public booking: [http://localhost:3000](http://localhost:3000)
-- Admin calendar: [http://localhost:3000/admin](http://localhost:3000/admin)
+- Public booking (sdc shim): [http://localhost:3000](http://localhost:3000) → `/c/sdc`
+- Generic staff login: [http://localhost:3000/login](http://localhost:3000/login)
+- SDC admin: [http://localhost:3000/c/sdc/admin](http://localhost:3000/c/sdc/admin)
+- Platform: [http://localhost:3000/platform](http://localhost:3000/platform)
 
-Default local password from `.env.example` is `changeme`. The SQLite file is created next to the Prisma schema (`prisma/clinic.db`).
+Default local clinic password from `.env.example` is `changeme` (clinic `sdc`). Platform demo password is `platform-demo`. The SQLite file is created next to the Prisma schema (`prisma/clinic.db`).
 
 To point the same laptop at the live cloud DB instead, put the Postgres URL in `.env.local` as `DATABASE_URL`. Then `npm run dev` migrates and uses Postgres — the same database the public site uses.
 
@@ -44,7 +87,7 @@ The production site is installable. After you deploy:
 
 1. Open the hosted URL and sign in at `/login`.
 2. Browser menu → **Install app** / **Add to Home Screen**, or use the install banner in the admin sidebar.
-3. The icon opens the calendar full screen (`start_url` is `/admin`).
+3. The icon opens generic `/login` (`start_url`). After sign-in you land on that clinic’s admin.
 
 **iPhone / iPad (Safari)**
 
@@ -62,9 +105,9 @@ The Android app is a **WebView shell** around the same live Worker. It is **Clin
 
 - App name: **SDC Clinic**
 - Application id: `care.shreedatta.clinic`
-- Start URL: `https://proud-truth-84df.kamrk1.workers.dev/admin` (same as the PWA `start_url`)
+- Start URL: `https://proud-truth-84df.kamrk1.workers.dev/login` (generic clinic ID + password; one APK for every customer)
 
-The launcher opens the **staff calendar**. If there is no session cookie, the existing web app may redirect `/admin` → `/login` once; after sign-in it returns to `/admin`. Do not point Capacitor at `/` (public booking) or `/login`.
+The launcher opens **staff login**, not a single clinic and not public booking. After sign-in the session cookie routes the WebView to `/c/{clinicId}/admin`. `allowNavigation` stays this origin so branded `/c/…` paths still work. Do not bake only `sdc` into the APK.
 
 ```bash
 npm install
@@ -84,7 +127,7 @@ If the clinic host is down, the WebView shows `www/error.html` instead of a blan
 
 ## Hosting (Cloudflare Workers)
 
-Production target: **https://proud-truth-84df.kamrk1.workers.dev** — Cloudflare Worker named `proud-truth-84df` (OpenNext, Next.js Node runtime via `nodejs_compat`). `/` is public booking, `/login` and `/admin` are the clinic admin, and the PWA (`/manifest.webmanifest`, `/sw.js`, `start_url` `/admin`) stays on that HTTPS origin.
+Production target: **https://proud-truth-84df.kamrk1.workers.dev** — Cloudflare Worker named `proud-truth-84df` (OpenNext, Next.js Node runtime via `nodejs_compat`). Public booking is `/c/{clinicId}` (`/` still redirects to `/c/sdc`). Generic `/login` is clinic ID + password. The PWA `start_url` is `/login`.
 
 Cloudflare Workers Builds is connected; first production deploy is triggered by this commit.
 
@@ -99,8 +142,9 @@ cp .dev.vars.example .dev.vars   # for npm run preview only; gitignored
 
 npx wrangler login               # once, in a browser
 npx wrangler secret put DATABASE_URL      # existing Prisma Postgres URL
-npx wrangler secret put ADMIN_PASSWORD
+npx wrangler secret put ADMIN_PASSWORD    # migrated onto clinic sdc
 npx wrangler secret put SESSION_SECRET
+npx wrangler secret put PLATFORM_PASSWORD
 
 npm run deploy                   # OpenNext build + wrangler deploy to proud-truth-84df
 ```
@@ -114,8 +158,10 @@ That deploy overwrites the Hello World worker at **https://proud-truth-84df.kamr
 | Name | Kind | Required | Notes |
 |------|------|----------|--------|
 | `DATABASE_URL` | secret | yes | Existing Prisma Postgres URL (`postgresql://…@db.prisma.io:5432/postgres?sslmode=require`). Same database as before. |
-| `ADMIN_PASSWORD` | secret | yes | `/login` password |
-| `SESSION_SECRET` | secret | yes | HMAC for the session cookie |
+| `ADMIN_PASSWORD` | secret | yes | Migrated onto clinic `sdc` as `passwordDigest`. Keep for the backfill. |
+| `PLATFORM_PASSWORD` | secret | yes in production | `/platform` operator password. Demo default `platform-demo` if unset. |
+| `SESSION_SECRET` | secret | yes | HMAC for the session cookie **and** clinic password digests |
+| `DEFAULT_CLINIC_ID` | var / env | no | Compatibility shims (`/`, `/admin`, `/api/slots`) use `sdc` |
 | `NEXTJS_ENV` | var (`wrangler.jsonc`) | no | Defaults to `production` |
 | `NEXT_PUBLIC_CLINIC_PHONE` | build env | no | Inlined at `next build`. Set in `.env` / `.env.local` before deploy. |
 | `NEXT_PUBLIC_CLINIC_ADDRESS` | build env | no | Same |
@@ -140,8 +186,10 @@ Worker size limit is 3 MiB gzip on the free plan (10 MiB paid). If deploy fails 
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `DATABASE_URL` | yes | Local: `file:./clinic.db`. Production: Postgres (`postgresql://…` or `prisma+postgres://…`). |
-| `ADMIN_PASSWORD` | yes | Password for `/login`. Stored as an httpOnly session cookie. |
-| `SESSION_SECRET` | yes | HMAC secret for the session cookie. Use a long random string in production. |
+| `ADMIN_PASSWORD` | yes | Migrated onto clinic `sdc`. Local default `changeme`. |
+| `PLATFORM_PASSWORD` | no | `/platform` password. Defaults to `platform-demo` if unset. |
+| `DEFAULT_CLINIC_ID` | no | Shim clinic for `/` and `/admin`. Defaults to `sdc`. |
+| `SESSION_SECRET` | yes | HMAC secret for the session cookie and clinic password digests. Use a long random string in production. |
 | `NEXT_PUBLIC_REVIEW_URL` | no | Shown on the appointment panel (Google review link). |
 | `NEXT_PUBLIC_CLINIC_PHONE` | no | 10-digit number shown on the public page. |
 | `NEXT_PUBLIC_CLINIC_ADDRESS` | no | Printed on prescriptions. |
@@ -180,9 +228,9 @@ Dates are `dd-MMM-yyyy` (e.g. `27-Aug-2026`), times `h:mm a` (e.g. `10:30 AM`), 
 If `Time From` / `Time To` are empty, the whole day is closed. A date range is expanded per day.
 
 ```bash
-npm run import-csv -- --appointments ./samples/appointments.csv
-npm run import-csv -- --patients ./samples/patients.csv
-npm run import-csv -- --blocks ./samples/closures.csv
+npm run import-csv -- --clinic sdc --appointments ./samples/appointments.csv
+npm run import-csv -- --clinic sdc --patients ./samples/patients.csv
+npm run import-csv -- --clinic sdc --blocks ./samples/closures.csv
 ```
 
 Sample files live in `samples/`. Import writes to whatever `DATABASE_URL` is (SQLite locally, or the cloud DB if you pointed `.env.local` at Postgres).
@@ -216,6 +264,6 @@ Files land in `backups/` (gitignored). Restore is a manual import; this is not a
 
 ## Stack
 
-Next.js 14 (App Router), TypeScript, Prisma (SQLite locally, Postgres in production via driver adapter on Cloudflare Workers), Tailwind CSS, FullCalendar (time grid + drag/resize/select), PWA (web app manifest + service worker), OpenNext (`@opennextjs/cloudflare`) + Wrangler, Capacitor 7 Android WebView shell (`server.url` → `/admin`).
+Next.js 14 (App Router), TypeScript, Prisma (SQLite locally, Postgres in production via driver adapter on Cloudflare Workers), Tailwind CSS, FullCalendar (time grid + drag/resize/select), PWA (web app manifest + service worker), OpenNext (`@opennextjs/cloudflare`) + Wrangler, Capacitor 7 Android WebView shell (`server.url` → `/login`).
 
 Google Calendar sync and Drive Rx are later adapters — the hosted database is the source of truth.

@@ -1,9 +1,9 @@
 {
   "id": "/",
-  "name": "Shree Datta Dental Care",
-  "short_name": "SDC Clinic",
-  "description": "Clinic calendar and booking for Shree Datta Dental Care. Phone and desktop share the live cloud database.",
-  "start_url": "/admin",
+  "name": "Clinic Admin",
+  "short_name": "Clinic Admin",
+  "description": "Multi-clinic calendar and booking. Sign in with your clinic ID.",
+  "start_url": "/login",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",

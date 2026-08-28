@@ -1,4 +1,4 @@
-const VERSION = "sdc-pwa-v3";
+const VERSION = "clinic-pwa-v5";
 const PRECACHE = [
   "/",
   "/login",

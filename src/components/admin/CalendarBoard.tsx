@@ -14,8 +14,8 @@ import type {
 } from "@fullcalendar/core";
 import type { DateClickArg, EventResizeDoneArg } from "@fullcalendar/interaction";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
-import { CLINIC } from "@/lib/clinic-config";
 import { durationMinutes, fromCalendarDateClick, fromCalendarMarker } from "@/lib/datetime";
+import { hhmmDuration, snapToAllowed } from "@/lib/hours-label";
 import type { AppointmentDTO, BlockDTO } from "@/lib/types";
 import { useAdminData } from "./AdminDataProvider";
 import { useToast } from "./Toast";
@@ -24,10 +24,8 @@ import { BlockFormModal } from "./BlockFormModal";
 import { EventDrawer } from "./EventDrawer";
 import { apiJson, reachabilityBanner, UNREACHABLE_BANNER } from "@/lib/api-client";
 
-function snapDuration(minutes: number) {
-  return ([30, 60, 90] as const).reduce((best, n) =>
-    Math.abs(n - minutes) < Math.abs(best - minutes) ? n : best,
-  );
+function snapDuration(minutes: number, allowed: number[]) {
+  return snapToAllowed(minutes, allowed);
 }
 
 function toEvents(appointments: AppointmentDTO[], blocks: BlockDTO[]): EventInput[] {
@@ -77,6 +75,7 @@ function EventInner({ arg }: { arg: EventContentArg }) {
 
 export function CalendarBoard() {
   const { snapshot, upsertAppointment, fromCache, refreshing, online, serverUnreachable } = useAdminData();
+  const clinic = snapshot.clinic;
   const toast = useToast();
   const calRef = useRef<FullCalendar>(null);
   const [title, setTitle] = useState("");
@@ -130,7 +129,8 @@ export function CalendarBoard() {
     const start = fromCalendarMarker(info.start, info.startStr);
     const end = fromCalendarMarker(info.end, info.endStr);
     info.view.calendar.unselect();
-    // Click-drag always creates a clinic block, including a single 30-min slot.
+    if (!clinic.flags.closures) return;
+    // Click-drag always creates a clinic block, including a single slot.
     // A click without drag is dateClick → new appointment.
     setBlockRange({ start, end });
   }
@@ -165,7 +165,7 @@ export function CalendarBoard() {
     const rawEnd = info.event.end
       ? fromCalendarMarker(info.event.end, info.event.endStr)
       : new Date(start.getTime() + prev.durationMin * 60_000);
-    const durationMin = snapDuration(durationMinutes(start, rawEnd));
+    const durationMin = snapDuration(durationMinutes(start, rawEnd), clinic.durations);
     const startAt = start.toISOString();
     const endAt = new Date(start.getTime() + durationMin * 60_000).toISOString();
     upsertAppointment({ ...prev, startAt, endAt, durationMin });
@@ -241,11 +241,11 @@ export function CalendarBoard() {
             plugins={[timeGridPlugin, interactionPlugin, luxonPlugin]}
             initialView={view}
             headerToolbar={false}
-            timeZone={CLINIC.timezone}
-            slotMinTime={CLINIC.hours.start + ":00"}
-            slotMaxTime={CLINIC.hours.end + ":00"}
-            slotDuration="00:30:00"
-            snapDuration="00:30:00"
+            timeZone={clinic.timezone}
+            slotMinTime={clinic.hours.start + ":00"}
+            slotMaxTime={clinic.hours.end + ":00"}
+            slotDuration={hhmmDuration(clinic.slotMinutes)}
+            snapDuration={hhmmDuration(clinic.slotMinutes)}
             allDaySlot={false}
             nowIndicator
             selectable
@@ -260,7 +260,7 @@ export function CalendarBoard() {
             height="100%"
             expandRows
             weekends
-            hiddenDays={CLINIC.closedWeekdays}
+            hiddenDays={clinic.closedWeekdays}
             slotLabelFormat={{ hour: "numeric", minute: "2-digit", hour12: true }}
             eventTimeFormat={{ hour: "numeric", minute: "2-digit", hour12: true }}
             dayHeaderFormat={
@@ -268,7 +268,7 @@ export function CalendarBoard() {
                 ? { weekday: "long", month: "short", day: "numeric" }
                 : { weekday: "short", day: "numeric" }
             }
-            scrollTime="10:00:00"
+            scrollTime={`${clinic.hours.start}:00`}
             events={events}
             dateClick={handleDateClick}
             select={handleSelect}

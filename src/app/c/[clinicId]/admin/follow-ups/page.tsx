@@ -10,6 +10,7 @@ type Tab = "overdue" | "imminent" | "week";
 
 export default function FollowUpsPage() {
   const { snapshot } = useAdminData();
+  const clinic = snapshot.clinic;
   const [tab, setTab] = useState<Tab>("overdue");
 
   const groups = useMemo(() => {
@@ -31,6 +32,10 @@ export default function FollowUpsPage() {
   }, [snapshot.appointments]);
 
   const rows = groups[tab];
+
+  if (!clinic.flags.followUps) {
+    return <p className="px-4 py-10 text-center text-sm text-slate-400">Follow-ups are not in this clinic package.</p>;
+  }
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6">
@@ -64,17 +69,19 @@ export default function FollowUpsPage() {
                 Follow-up {formatDateLong(new Date(a.followupDate!))} · {a.service} · {a.ref}
               </div>
             </div>
+            {clinic.flags.whatsapp && (
             <a
               className="btn-secondary"
               href={waLink(
                 a.phone,
-                `Hello ${a.patientName}, this is Shree Datta Dental Care. Your follow-up is due on ${formatDateLong(new Date(a.followupDate!))}. Please book a slot.`,
+                `Hello ${a.patientName}, this is ${clinic.name}. Your follow-up is due on ${formatDateLong(new Date(a.followupDate!))}. Please book a slot.`,
               )}
               target="_blank"
               rel="noreferrer"
             >
               <MessageCircle className="h-4 w-4" /> WhatsApp
             </a>
+            )}
           </div>
         ))}
         {rows.length === 0 && <p className="py-10 text-center text-sm text-slate-400">Nothing in this list</p>}

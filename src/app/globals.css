@@ -8,6 +8,11 @@
     height: 100%;
   }
 
+  :root {
+    --brand-primary: #0e6b6f;
+    --brand-accent: #c9a35b;
+  }
+
   body {
     @apply bg-ivory text-slate-900 antialiased;
   }
@@ -73,9 +78,9 @@
   --fc-border-color: #e8ecec;
   --fc-page-bg-color: #ffffff;
   --fc-neutral-bg-color: #f7f5f2;
-  --fc-today-bg-color: #f3fafa;
-  --fc-now-indicator-color: #0e6b6f;
-  --fc-highlight-color: rgba(14, 107, 111, 0.38);
+  --fc-today-bg-color: color-mix(in srgb, var(--brand-primary, #0e6b6f) 6%, white);
+  --fc-now-indicator-color: var(--brand-primary, #0e6b6f);
+  --fc-highlight-color: color-mix(in srgb, var(--brand-primary, #0e6b6f) 38%, transparent);
   --fc-event-border-color: transparent;
   --fc-small-font-size: 0.75rem;
   font-family: var(--font-inter), system-ui, sans-serif;

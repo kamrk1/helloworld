@@ -11,6 +11,10 @@ import { apiJson } from "@/lib/api-client";
 export default function PendingPage() {
   const { snapshot, upsertAppointment } = useAdminData();
   const toast = useToast();
+  const clinic = snapshot.clinic;
+  if (!clinic.flags.pendingApproval) {
+    return <p className="px-4 py-10 text-center text-sm text-slate-400">Pending approvals are not in this clinic package.</p>;
+  }
   const pending = snapshot.appointments
     .filter((a) => a.status === "PENDING")
     .sort((a, b) => +new Date(a.startAt) - +new Date(b.startAt));
@@ -49,14 +53,16 @@ export default function PendingPage() {
                 {a.notes && <p className="mt-2 text-sm text-slate-600">{a.notes}</p>}
               </div>
               <div className="flex flex-wrap gap-2">
-                <a
-                  className="btn-secondary"
-                  href={waLink(a.phone, `Hello ${a.patientName}, Shree Datta Dental Care here about ${a.ref}.`)}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <MessageCircle className="h-4 w-4" /> WhatsApp
-                </a>
+                {clinic.flags.whatsapp && (
+                  <a
+                    className="btn-secondary"
+                    href={waLink(a.phone, `Hello ${a.patientName}, ${clinic.name} here about ${a.ref}.`)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <MessageCircle className="h-4 w-4" /> WhatsApp
+                  </a>
+                )}
                 <button className="btn-primary" onClick={() => setStatus(a, "APPROVED")}>
                   Approve
                 </button>

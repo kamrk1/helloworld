@@ -1,16 +1,19 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
 import { HOSTED } from "./hosted-values";
+import { defaultClinicId } from "./clinic-config";
 
-function applyHosted(key: "ADMIN_PASSWORD" | "SESSION_SECRET") {
-  const value = HOSTED[key];
+function applyHosted(key: "ADMIN_PASSWORD" | "SESSION_SECRET" | "PLATFORM_PASSWORD") {
+  const value = HOSTED[key as keyof typeof HOSTED];
   if (value && !process.env[key]) process.env[key] = value;
 }
 applyHosted("ADMIN_PASSWORD");
 applyHosted("SESSION_SECRET");
+applyHosted("PLATFORM_PASSWORD");
 
 const COOKIE = "sdc_session";
 const MAX_AGE = 60 * 60 * 24 * 7;
+const SESSION_VERSION = 2;
 
 function sessionSecret() {
   const secret = process.env["SESSION_SECRET"];
@@ -25,7 +28,11 @@ function sign(payload: string) {
   return `${payload}.${sig}`;
 }
 
-function verify(token: string) {
+export type ClinicSession = { role: "clinic"; clinicId: string; exp: number };
+export type PlatformSession = { role: "platform"; exp: number };
+export type Session = ClinicSession | PlatformSession;
+
+function verify(token: string): Session | null {
   const i = token.lastIndexOf(".");
   if (i <= 0) return null;
   const payload = token.slice(0, i);
@@ -38,22 +45,36 @@ function verify(token: string) {
     const data = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as {
       v: number;
       exp: number;
+      role?: string;
+      clinicId?: string;
     };
-    if (data.v !== 1 || data.exp < Date.now()) return null;
-    return data;
+    if (data.v !== SESSION_VERSION || data.exp < Date.now()) return null;
+    if (data.role === "platform") return { role: "platform", exp: data.exp };
+    if (data.role === "clinic" && data.clinicId) {
+      return { role: "clinic", clinicId: data.clinicId, exp: data.exp };
+    }
+    return null;
   } catch {
     return null;
   }
 }
 
-export function createSessionToken() {
-  const payload = Buffer.from(JSON.stringify({ v: 1, exp: Date.now() + MAX_AGE * 1000 })).toString(
-    "base64url",
-  );
+function tokenFor(body: Record<string, unknown>) {
+  const payload = Buffer.from(
+    JSON.stringify({ v: SESSION_VERSION, exp: Date.now() + MAX_AGE * 1000, ...body }),
+  ).toString("base64url");
   return sign(payload);
 }
 
-export async function getSession() {
+export function createClinicSessionToken(clinicId: string) {
+  return tokenFor({ role: "clinic", clinicId });
+}
+
+export function createPlatformSessionToken() {
+  return tokenFor({ role: "platform" });
+}
+
+export async function getSession(): Promise<Session | null> {
   const token = cookies().get(COOKIE)?.value;
   if (!token) return null;
   try {
@@ -87,12 +108,14 @@ export function clearSessionCookie() {
   };
 }
 
-export function checkAdminPassword(password: string) {
-  const expected = process.env["ADMIN_PASSWORD"];
-  if (!expected) {
-    throw new Error("ADMIN_PASSWORD is not set");
-  }
-  const a = Buffer.from(password);
+export function clinicPasswordDigest(clinicId: string, password: string) {
+  return createHmac("sha256", sessionSecret())
+    .update(`clinic:${clinicId}:v1:${password}`)
+    .digest("base64url");
+}
+
+function safeEqualString(provided: string, expected: string) {
+  const a = Buffer.from(provided);
   const b = Buffer.from(expected);
   if (a.length !== b.length) {
     const dummy = Buffer.alloc(b.length);
@@ -100,4 +123,25 @@ export function checkAdminPassword(password: string) {
     return false;
   }
   return timingSafeEqual(a, b);
+}
+
+export function checkClinicPassword(clinicId: string, password: string, storedDigest: string) {
+  if (storedDigest) {
+    return safeEqualString(clinicPasswordDigest(clinicId, password), storedDigest);
+  }
+  // One-time migration: sdc still uses env ADMIN_PASSWORD until hashed onto the row.
+  if (clinicId === defaultClinicId()) {
+    const expected = process.env["ADMIN_PASSWORD"];
+    if (!expected) return false;
+    return safeEqualString(password, expected);
+  }
+  return false;
+}
+
+export function platformPassword() {
+  return process.env["PLATFORM_PASSWORD"] || "platform-demo";
+}
+
+export function checkPlatformPassword(password: string) {
+  return safeEqualString(password, platformPassword());
 }

@@ -1,4 +1,4 @@
-import { CLINIC, ACTIVE_STATUSES } from "./clinic-config";
+import { ACTIVE_STATUSES, type ClinicRuntime } from "./clinic-config";
 import { addMinutes, istDateTimeFromIsoDate, toISODateIST } from "./datetime";
 import { prisma } from "./prisma";
 import {
@@ -19,10 +19,16 @@ export {
   type SlotReason,
 } from "./slot-logic";
 
-export async function occupiedRanges(from: Date, to: Date, excludeAppointmentId?: string) {
+export async function occupiedRanges(
+  clinicId: string,
+  from: Date,
+  to: Date,
+  excludeAppointmentId?: string,
+) {
   const [appointments, blocks] = await Promise.all([
     prisma.appointment.findMany({
       where: {
+        clinicId,
         status: { in: [...ACTIVE_STATUSES] },
         startAt: { lt: to },
         endAt: { gt: from },
@@ -31,7 +37,7 @@ export async function occupiedRanges(from: Date, to: Date, excludeAppointmentId?
       select: { startAt: true, endAt: true },
     }),
     prisma.clinicBlock.findMany({
-      where: { startAt: { lt: to }, endAt: { gt: from } },
+      where: { clinicId, startAt: { lt: to }, endAt: { gt: from } },
       select: { startAt: true, endAt: true },
     }),
   ]);
@@ -42,13 +48,14 @@ export async function occupiedRanges(from: Date, to: Date, excludeAppointmentId?
 }
 
 export async function listSlotsForDate(
+  clinic: ClinicRuntime,
   isoDate: string,
-  durationMin: number = CLINIC.defaultDuration,
+  durationMin: number = clinic.defaultDuration,
 ): Promise<DaySlots> {
   const dayStart = istDateTimeFromIsoDate(isoDate, "00:00");
   const dateStatus = calendarDateStatus(isoDate);
   const past = dateStatus === "past";
-  if (clinicClosedOn(dayStart)) {
+  if (clinicClosedOn(dayStart, clinic.closedWeekdays)) {
     return { date: isoDate, closed: true, past, slots: [] };
   }
 
@@ -57,6 +64,7 @@ export async function listSlotsForDate(
   const [appointmentRows, blockRows] = await Promise.all([
     prisma.appointment.findMany({
       where: {
+        clinicId: clinic.id,
         status: { in: [...ACTIVE_STATUSES] },
         startAt: { lt: windowEnd },
         endAt: { gt: dayStart },
@@ -64,16 +72,16 @@ export async function listSlotsForDate(
       select: { startAt: true, endAt: true },
     }),
     prisma.clinicBlock.findMany({
-      where: { startAt: { lt: windowEnd }, endAt: { gt: dayStart } },
+      where: { clinicId: clinic.id, startAt: { lt: windowEnd }, endAt: { gt: dayStart } },
       select: { startAt: true, endAt: true },
     }),
   ]);
   const booked = appointmentRows.map((a) => ({ start: a.startAt, end: a.endAt }));
   const blocked = blockRows.map((b) => ({ start: b.startAt, end: b.endAt }));
   const now = new Date();
-  const clinicEnd = istDateTimeFromIsoDate(isoDate, CLINIC.hours.end);
+  const clinicEnd = istDateTimeFromIsoDate(isoDate, clinic.hours.end);
 
-  const slots = generateDayStarts().map((time) => {
+  const slots = generateDayStarts(clinic.hours, clinic.slotMinutes).map((time) => {
     const start = istDateTimeFromIsoDate(isoDate, time);
     const end = addMinutes(start, durationMin);
     const reason = reasonForSlot({ start, end, now, clinicEnd, dateStatus, booked, blocked });
@@ -83,6 +91,7 @@ export async function listSlotsForDate(
 }
 
 export async function findConflicts(opts: {
+  clinicId: string;
   startAt: Date;
   endAt: Date;
   excludeAppointmentId?: string;
@@ -91,6 +100,7 @@ export async function findConflicts(opts: {
   const [appointments, blocks] = await Promise.all([
     prisma.appointment.findMany({
       where: {
+        clinicId: opts.clinicId,
         status: { in: [...ACTIVE_STATUSES] },
         startAt: { lt: opts.endAt },
         endAt: { gt: opts.startAt },
@@ -100,6 +110,7 @@ export async function findConflicts(opts: {
     }),
     prisma.clinicBlock.findMany({
       where: {
+        clinicId: opts.clinicId,
         startAt: { lt: opts.endAt },
         endAt: { gt: opts.startAt },
         ...(opts.excludeBlockId ? { id: { not: opts.excludeBlockId } } : {}),
@@ -110,6 +121,7 @@ export async function findConflicts(opts: {
 }
 
 export async function assertBookable(opts: {
+  clinic: ClinicRuntime;
   startAt: Date;
   endAt: Date;
   excludeAppointmentId?: string;
@@ -119,15 +131,22 @@ export async function assertBookable(opts: {
     return "End time must be after start time";
   }
   if (!opts.allowOutsideHours) {
-    if (clinicClosedOn(opts.startAt)) return "Clinic is closed on Sundays";
+    if (clinicClosedOn(opts.startAt, opts.clinic.closedWeekdays)) {
+      return "Clinic is closed that day";
+    }
     const date = toISODateIST(opts.startAt);
-    const open = istDateTimeFromIsoDate(date, CLINIC.hours.start);
-    const close = istDateTimeFromIsoDate(date, CLINIC.hours.end);
+    const open = istDateTimeFromIsoDate(date, opts.clinic.hours.start);
+    const close = istDateTimeFromIsoDate(date, opts.clinic.hours.end);
     if (opts.startAt < open || opts.endAt > close) {
-      return `Clinic hours are ${CLINIC.hours.start}–${CLINIC.hours.end}`;
+      return `Clinic hours are ${opts.clinic.hours.start}–${opts.clinic.hours.end}`;
     }
   }
-  const conflicts = await findConflicts(opts);
+  const conflicts = await findConflicts({
+    clinicId: opts.clinic.id,
+    startAt: opts.startAt,
+    endAt: opts.endAt,
+    excludeAppointmentId: opts.excludeAppointmentId,
+  });
   if (conflicts.blocks.length) return "That time is blocked (clinic closure)";
   if (conflicts.appointments.length) {
     return `Slot overlaps appointment ${conflicts.appointments[0].ref}`;

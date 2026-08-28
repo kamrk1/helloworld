@@ -5,7 +5,6 @@ import { Modal } from "./Modal";
 import { PatientTypeahead } from "./PatientTypeahead";
 import { useAdminData } from "./AdminDataProvider";
 import { useToast } from "./Toast";
-import { CLINIC } from "@/lib/clinic-config";
 import { toHHMMIST, toISODateIST } from "@/lib/datetime";
 import type { AppointmentDTO, PatientDTO } from "@/lib/types";
 import { apiJson } from "@/lib/api-client";
@@ -20,6 +19,7 @@ export function AppointmentFormModal({
   onClose: () => void;
 }) {
   const { snapshot, upsertAppointment, upsertPatient } = useAdminData();
+  const clinic = snapshot.clinic;
   const toast = useToast();
   const initial = appointment
     ? new Date(appointment.startAt)
@@ -29,10 +29,10 @@ export function AppointmentFormModal({
   const [name, setName] = useState(appointment?.patientName ?? "");
   const [phone, setPhone] = useState(appointment?.phone ?? "");
   const [email, setEmail] = useState(appointment?.email ?? "");
-  const [service, setService] = useState(appointment?.service ?? CLINIC.services[0]);
+  const [service, setService] = useState(appointment?.service ?? clinic.services[0] ?? "Consultation");
   const [date, setDate] = useState(toISODateIST(initial));
   const [time, setTime] = useState(toHHMMIST(initial));
-  const [durationMin, setDurationMin] = useState(appointment?.durationMin ?? CLINIC.defaultDuration);
+  const [durationMin, setDurationMin] = useState(appointment?.durationMin ?? clinic.defaultDuration);
   const [notes, setNotes] = useState(appointment?.notes ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -124,7 +124,7 @@ export function AppointmentFormModal({
         <div>
           <label className="label">Service / concern</label>
           <select className="input" value={service} onChange={(e) => setService(e.target.value)}>
-            {CLINIC.services.map((s) => (
+                  {clinic.services.map((s) => (
               <option key={s} value={s}>
                 {s}
               </option>
@@ -138,13 +138,13 @@ export function AppointmentFormModal({
           </div>
           <div>
             <label className="label">Time</label>
-            <input className="input" type="time" value={time} onChange={(e) => setTime(e.target.value)} required step={1800} />
+            <input className="input" type="time" value={time} onChange={(e) => setTime(e.target.value)} required step={clinic.slotMinutes * 60} />
           </div>
         </div>
         <div>
           <label className="label">Duration</label>
           <div className="flex gap-2">
-            {CLINIC.durations.map((d) => (
+            {clinic.durations.map((d) => (
               <button
                 type="button"
                 key={d}

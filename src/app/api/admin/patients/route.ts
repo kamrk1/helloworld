@@ -1,20 +1,23 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/require-admin";
+import { requireClinic } from "@/lib/require-admin";
 import { patientCreateSchema } from "@/lib/validation";
 import { normalizePhone, isValidPhone } from "@/lib/phone";
 import { toPatientDTO } from "@/lib/serializers";
 
 export async function GET() {
-  const denied = await requireAdmin();
-  if (denied) return denied;
-  const rows = await prisma.patient.findMany({ orderBy: { name: "asc" } });
+  const auth = await requireClinic();
+  if (auth.error) return auth.error;
+  const rows = await prisma.patient.findMany({
+    where: { clinicId: auth.clinic.id },
+    orderBy: { name: "asc" },
+  });
   return NextResponse.json(rows.map(toPatientDTO));
 }
 
 export async function POST(req: Request) {
-  const denied = await requireAdmin();
-  if (denied) return denied;
+  const auth = await requireClinic();
+  if (auth.error) return auth.error;
   try {
     const json = await req.json();
     const parsed = patientCreateSchema.safeParse(json);
@@ -26,8 +29,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Enter a 10-digit mobile number" }, { status: 400 });
     }
     const created = await prisma.patient.upsert({
-      where: { phone },
+      where: { clinicId_phone: { clinicId: auth.clinic.id, phone } },
       create: {
+        clinicId: auth.clinic.id,
         phone,
         name: parsed.data.name,
         email: parsed.data.email ? parsed.data.email : null,

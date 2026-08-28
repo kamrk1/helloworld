@@ -17,6 +17,8 @@ import { prisma } from "../src/lib/prisma";
 import { addDays, addMinutes, istDateTime, parseSheetDate, parseSheetTime, sheetDateTime } from "../src/lib/datetime";
 import { normalizePhone } from "../src/lib/phone";
 import { uniqueRef, refreshPatientStats } from "../src/lib/serializers";
+import { defaultClinicId } from "../src/lib/clinic-config";
+import { ensureSdcClinic } from "../src/lib/tenant";
 
 function arg(name: string) {
   const i = process.argv.indexOf(name);
@@ -42,7 +44,11 @@ function col(row: Record<string, string>, ...names: string[]) {
   return "";
 }
 
-async function importPatients(file: string) {
+function clinicIdArg() {
+  return (arg("--clinic") || process.env["SEED_CLINIC_ID"] || defaultClinicId()).toLowerCase();
+}
+
+async function importPatients(file: string, clinicId: string) {
   const data = rows(file);
   let n = 0;
   for (const row of data) {
@@ -51,8 +57,8 @@ async function importPatients(file: string) {
     if (!phone || !name) continue;
     const email = col(row, "Email") || null;
     await prisma.patient.upsert({
-      where: { phone },
-      create: { phone, name, email },
+      where: { clinicId_phone: { clinicId, phone } },
+      create: { clinicId, phone, name, email },
       update: { name, email: email ?? undefined },
     });
     n += 1;
@@ -60,7 +66,7 @@ async function importPatients(file: string) {
   console.log(`Imported ${n} patients from ${file}`);
 }
 
-async function importAppointments(file: string) {
+async function importAppointments(file: string, clinicId: string) {
   const data = rows(file);
   let n = 0;
   for (const row of data) {
@@ -72,8 +78,8 @@ async function importAppointments(file: string) {
     }
     const email = col(row, "Email") || null;
     const patient = await prisma.patient.upsert({
-      where: { phone },
-      create: { phone, name, email },
+      where: { clinicId_phone: { clinicId, phone } },
+      create: { clinicId, phone, name, email },
       update: { name, email: email ?? undefined },
     });
 
@@ -86,14 +92,15 @@ async function importAppointments(file: string) {
     }
     const durationMin = 30;
     const endAt = addMinutes(startAt, durationMin);
-    const ref = col(row, "Ref") || (await uniqueRef(startAt));
+    const ref = col(row, "Ref") || (await uniqueRef(clinicId, startAt));
     const status = (col(row, "Status") || "PENDING").toUpperCase();
     const followRaw = col(row, "FollowupDate", "Follow-up Date");
     const followupDate = followRaw ? sheetDateTime(followRaw, "10:00 AM") : null;
 
     await prisma.appointment.upsert({
-      where: { ref },
+      where: { clinicId_ref: { clinicId, ref } },
       create: {
+        clinicId,
         ref,
         patientId: patient.id,
         service: col(row, "Service") || "Consultation",
@@ -125,13 +132,13 @@ async function importAppointments(file: string) {
     data.map((row) => normalizePhone(col(row, "Phone"))).filter(Boolean),
   );
   for (const phone of Array.from(phones)) {
-    const p = await prisma.patient.findUnique({ where: { phone } });
+    const p = await prisma.patient.findUnique({ where: { clinicId_phone: { clinicId, phone } } });
     if (p) await refreshPatientStats(p.id);
   }
   console.log(`Imported ${n} appointments from ${file}`);
 }
 
-async function importBlocks(file: string) {
+async function importBlocks(file: string, clinicId: string) {
   const data = rows(file);
   let n = 0;
   for (const row of data) {
@@ -162,7 +169,7 @@ async function importBlocks(file: string) {
         : istDateTime(cursor.y, cursor.m, cursor.d, tt?.h ?? 20, tt?.min ?? 0);
 
       await prisma.clinicBlock.create({
-        data: { startAt, endAt, allDay, reason },
+        data: { clinicId, startAt, endAt, allDay, reason },
       });
       n += 1;
 
@@ -184,14 +191,20 @@ async function main() {
   const blocks = arg("--blocks");
   if (!patients && !appointments && !blocks) {
     console.log(`Usage:
-  npm run import-csv -- --appointments ./samples/appointments.csv
+  npm run import-csv -- --clinic sdc --appointments ./samples/appointments.csv
   npm run import-csv -- --patients ./samples/patients.csv
   npm run import-csv -- --blocks ./samples/closures.csv`);
     process.exit(1);
   }
-  if (patients) await importPatients(patients);
-  if (appointments) await importAppointments(appointments);
-  if (blocks) await importBlocks(blocks);
+  await ensureSdcClinic();
+  const clinicId = clinicIdArg();
+  const clinic = await prisma.clinic.findUnique({ where: { id: clinicId } });
+  if (!clinic) {
+    throw new Error(`Clinic ${clinicId} does not exist`);
+  }
+  if (patients) await importPatients(patients, clinicId);
+  if (appointments) await importAppointments(appointments, clinicId);
+  if (blocks) await importBlocks(blocks, clinicId);
 }
 
 main()

@@ -6,7 +6,7 @@ import { useAdminData } from "./AdminDataProvider";
 import { useToast } from "./Toast";
 import type { AppointmentDTO, PrescriptionDTO } from "@/lib/types";
 import { formatDateLong, toISODateIST } from "@/lib/datetime";
-import { CLINIC } from "@/lib/clinic-config";
+import { adminBase } from "@/lib/clinic-config";
 import { apiJson } from "@/lib/api-client";
 
 export function PrescriptionModal({
@@ -16,7 +16,8 @@ export function PrescriptionModal({
   appointment: AppointmentDTO;
   onClose: () => void;
 }) {
-  const { upsertAppointment } = useAdminData();
+  const { upsertAppointment, snapshot } = useAdminData();
+  const clinic = snapshot.clinic;
   const toast = useToast();
   const [complaints, setComplaints] = useState("");
   const [findings, setFindings] = useState("");
@@ -66,7 +67,7 @@ export function PrescriptionModal({
       upsertAppointment(json.appointment);
       toast.push("Prescription saved");
       if (printAfter) {
-        window.open(`/admin/print/rx/${appointment.id}?print=1`, "_blank");
+        window.open(`${adminBase(clinic.id)}/print/rx/${appointment.id}?print=1`, "_blank");
       }
       onClose();
     } catch (err) {
@@ -80,7 +81,7 @@ export function PrescriptionModal({
     <Modal title="Prescription" onClose={onClose} wide>
       <p className="mb-4 text-sm text-slate-500">
         {appointment.patientName} · {appointment.ref} · {formatDateLong(new Date(appointment.startAt))} ·{" "}
-        {CLINIC.name}
+        {clinic.name}
       </p>
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="sm:col-span-2">

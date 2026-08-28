@@ -1,5 +1,6 @@
 import { prisma } from "../src/lib/prisma";
-import { CLINIC } from "../src/lib/clinic-config";
+import { DEFAULT_CLINIC, defaultClinicId } from "../src/lib/clinic-config";
+import { ensureSdcClinic } from "../src/lib/tenant";
 import { addDays, addMinutes, getISTParts, istDateTime, startOfWeekMondayIST } from "../src/lib/datetime";
 
 type SeedPatient = {
@@ -21,11 +22,24 @@ type SeedAppt = {
   ref?: string;
 };
 
+function arg(name: string) {
+  const i = process.argv.indexOf(name);
+  if (i === -1) return null;
+  return process.argv[i + 1] ?? null;
+}
+
 async function main() {
-  const existing = await prisma.patient.count();
+  await ensureSdcClinic();
+  const clinicId = (arg("--clinic") || process.env["SEED_CLINIC_ID"] || defaultClinicId()).toLowerCase();
+  const existing = await prisma.patient.count({ where: { clinicId } });
   if (existing > 0) {
-    console.log(`Database already has ${existing} patients — skipping seed.`);
+    console.log(`Clinic ${clinicId} already has ${existing} patients — skipping seed.`);
     return;
+  }
+
+  const clinic = await prisma.clinic.findUnique({ where: { id: clinicId } });
+  if (!clinic) {
+    throw new Error(`Clinic ${clinicId} does not exist. Create it from /platform first.`);
   }
 
   const monday = startOfWeekMondayIST();
@@ -52,7 +66,7 @@ async function main() {
   const created = new Map<string, { id: string }>();
   for (const p of patients) {
     const row = await prisma.patient.create({
-      data: { phone: p.phone, name: p.name, email: p.email ?? null },
+      data: { clinicId, phone: p.phone, name: p.name, email: p.email ?? null },
     });
     created.set(p.phone, row);
   }
@@ -82,6 +96,7 @@ async function main() {
     { phone: "9876500009", service: "Consultation", dayOffset: -10, hour: 10, minute: 0, durationMin: 30, status: "CANCELLED", notes: "Patient cancelled" },
   ];
 
+  const prefix = clinicId.replace(/[^a-z0-9]/gi, "").slice(0, 8).toUpperCase() || "CLN";
   let i = 0;
   for (const a of appts) {
     const patient = created.get(a.phone)!;
@@ -91,7 +106,7 @@ async function main() {
     );
     const endAt = addMinutes(startAt, a.durationMin);
     const sp = getISTParts(startAt);
-    const ref = `SDC-${sp.year}${String(sp.month).padStart(2, "0")}${String(sp.day).padStart(2, "0")}-${String(100 + i).slice(-3)}`;
+    const ref = `${prefix}-${sp.year}${String(sp.month).padStart(2, "0")}${String(sp.day).padStart(2, "0")}-${String(100 + i).slice(-3)}`;
     i += 1;
     const followupDate =
       a.followupDayOffset == null
@@ -100,6 +115,7 @@ async function main() {
 
     await prisma.appointment.create({
       data: {
+        clinicId,
         ref,
         patientId: patient.id,
         service: a.service,
@@ -117,12 +133,14 @@ async function main() {
   await prisma.clinicBlock.createMany({
     data: [
       {
+        clinicId,
         startAt: addDays(istDateTime(mp.year, mp.month, mp.day, 13, 0), 2),
         endAt: addDays(istDateTime(mp.year, mp.month, mp.day, 14, 0), 2),
         allDay: false,
         reason: "Lunch / staff break",
       },
       {
+        clinicId,
         startAt: addDays(istDateTime(mp.year, mp.month, mp.day, 16, 0), 4),
         endAt: addDays(istDateTime(mp.year, mp.month, mp.day, 17, 0), 4),
         allDay: false,
@@ -133,7 +151,7 @@ async function main() {
 
   for (const p of Array.from(created.values())) {
     const rows = await prisma.appointment.findMany({
-      where: { patientId: p.id, status: { in: ["PENDING", "APPROVED", "CONFIRMED"] } },
+      where: { clinicId, patientId: p.id, status: { in: ["PENDING", "APPROVED", "CONFIRMED"] } },
       orderBy: { startAt: "asc" },
     });
     await prisma.patient.update({
@@ -148,7 +166,7 @@ async function main() {
   }
 
   console.log(
-    `Seeded ${patients.length} patients, ${appts.length} appointments, 2 closures for week of ${mp.year}-${String(mp.month).padStart(2, "0")}-${String(mp.day).padStart(2, "0")} (${CLINIC.timezone}).`,
+    `Seeded ${patients.length} patients, ${appts.length} appointments, 2 closures for clinic ${clinicId} week of ${mp.year}-${String(mp.month).padStart(2, "0")}-${String(mp.day).padStart(2, "0")} (${DEFAULT_CLINIC.timezone}).`,
   );
 }
 

@@ -11,9 +11,9 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "Shree Datta Dental Care",
-  description: "Appointments, calendar, and clinic admin for Shree Datta Dental Care",
-  applicationName: "SDC Clinic",
+  title: "Clinic Admin",
+  description: "Appointments, calendar, and clinic admin",
+  applicationName: "Clinic Admin",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,

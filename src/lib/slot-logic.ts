@@ -1,5 +1,6 @@
-import { CLINIC } from "./clinic-config";
+import { DEFAULT_CLINIC } from "./clinic-config";
 import { toISODateIST, weekdayIST } from "./datetime";
+import type { ClinicRuntime } from "./clinic-config";
 
 export type SlotReason = "past" | "booked" | "blocked" | "too_late";
 
@@ -21,8 +22,8 @@ export function calendarDateStatus(isoDate: string, now = new Date()): "past" | 
   return "today";
 }
 
-export function clinicClosedOn(date: Date) {
-  return CLINIC.closedWeekdays.includes(weekdayIST(date));
+export function clinicClosedOn(date: Date, closedWeekdays: number[] = [...DEFAULT_CLINIC.closedWeekdays]) {
+  return closedWeekdays.includes(weekdayIST(date));
 }
 
 export function overlaps(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date) {
@@ -52,14 +53,23 @@ function timeToMinutes(hhmm: string) {
   return h * 60 + m;
 }
 
-export function generateDayStarts() {
+export function generateDayStarts(
+  hours: { start: string; end: string } = DEFAULT_CLINIC.hours,
+  slotMinutes: number = DEFAULT_CLINIC.slotMinutes,
+) {
   const starts: string[] = [];
-  const from = timeToMinutes(CLINIC.hours.start);
-  const to = timeToMinutes(CLINIC.hours.end);
-  for (let t = from; t + CLINIC.slotMinutes <= to; t += CLINIC.slotMinutes) {
+  const from = timeToMinutes(hours.start);
+  const to = timeToMinutes(hours.end);
+  const step = slotMinutes > 0 ? slotMinutes : 30;
+  for (let t = from; t + step <= to; t += step) {
     const h = Math.floor(t / 60);
     const m = t % 60;
     starts.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
   }
   return starts;
+}
+
+export function hoursLabel(clinic: Pick<ClinicRuntime, "hours" | "closedWeekdays">) {
+  const closed = clinic.closedWeekdays.includes(0) ? "Sunday closed" : "";
+  return `${clinic.hours.start}–${clinic.hours.end}${closed ? ` · ${closed}` : ""}`;
 }

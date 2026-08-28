@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/require-admin";
+import { requireClinic } from "@/lib/require-admin";
 import { loadSnapshot } from "@/lib/serializers";
 
 export async function GET() {
-  const denied = await requireAdmin();
-  if (denied) return denied;
-  const snapshot = await loadSnapshot();
+  const auth = await requireClinic();
+  if (auth.error) return auth.error;
+  const snapshot = await loadSnapshot(auth.clinic);
   return NextResponse.json(snapshot);
 }

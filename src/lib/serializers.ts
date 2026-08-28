@@ -1,8 +1,9 @@
 import type { Appointment, Patient, ClinicBlock, Prescription } from "@prisma/client";
-import type { AppointmentStatus } from "./clinic-config";
+import type { AppointmentStatus, ClinicRuntime } from "./clinic-config";
 import type { AppointmentDTO, BlockDTO, PatientDTO, PrescriptionDTO } from "./types";
 import { prisma } from "./prisma";
 import { getISTParts } from "./datetime";
+import { toAdminClinic } from "./clinic-runtime";
 
 type ApptWithPatient = Appointment & {
   patient: Patient;
@@ -66,20 +67,25 @@ export function toPrescriptionDTO(row: Prescription): PrescriptionDTO {
   };
 }
 
-export function makeRef(date: Date) {
+export function makeRef(clinicId: string, date: Date) {
   const p = getISTParts(date);
   const ymd = `${p.year}${String(p.month).padStart(2, "0")}${String(p.day).padStart(2, "0")}`;
   const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
-  return `SDC-${ymd}-${rand}`;
+  const prefix = clinicId.replace(/[^a-z0-9]/gi, "").slice(0, 8).toUpperCase() || "CLN";
+  return `${prefix}-${ymd}-${rand}`;
 }
 
-export async function uniqueRef(date: Date) {
+export async function uniqueRef(clinicId: string, date: Date) {
   for (let i = 0; i < 8; i++) {
-    const ref = makeRef(date);
-    const exists = await prisma.appointment.findUnique({ where: { ref }, select: { id: true } });
+    const ref = makeRef(clinicId, date);
+    const exists = await prisma.appointment.findUnique({
+      where: { clinicId_ref: { clinicId, ref } },
+      select: { id: true },
+    });
     if (!exists) return ref;
   }
-  return `SDC-${Date.now().toString(36).toUpperCase()}`;
+  const prefix = clinicId.replace(/[^a-z0-9]/gi, "").slice(0, 8).toUpperCase() || "CLN";
+  return `${prefix}-${Date.now().toString(36).toUpperCase()}`;
 }
 
 export async function refreshPatientStats(patientId: string) {
@@ -105,17 +111,19 @@ export const appointmentInclude = {
   prescription: { select: { id: true } },
 } as const;
 
-export async function loadSnapshot() {
+export async function loadSnapshot(clinic: ClinicRuntime) {
   const [appointments, patients, blocks] = await Promise.all([
     prisma.appointment.findMany({
+      where: { clinicId: clinic.id },
       include: appointmentInclude,
       orderBy: { startAt: "asc" },
     }),
-    prisma.patient.findMany({ orderBy: { name: "asc" } }),
-    prisma.clinicBlock.findMany({ orderBy: { startAt: "asc" } }),
+    prisma.patient.findMany({ where: { clinicId: clinic.id }, orderBy: { name: "asc" } }),
+    prisma.clinicBlock.findMany({ where: { clinicId: clinic.id }, orderBy: { startAt: "asc" } }),
   ]);
 
   return {
+    clinic: toAdminClinic(clinic),
     appointments: appointments.map((a) => toAppointmentDTO(a)),
     patients: patients.map(toPatientDTO),
     blocks: blocks.map(toBlockDTO),

@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
-import { listSlotsForDate } from "@/lib/slots";
-import { CLINIC } from "@/lib/clinic-config";
+import { clinicIdFromRequest, publicClinicOrError, slotsJson } from "@/lib/public-booking";
 
+/** Compatibility shim: defaults to DEFAULT_CLINIC_ID so old /api/slots bookmarks keep working. */
 export async function GET(req: Request) {
+  const found = await publicClinicOrError(clinicIdFromRequest(req), { requireBooking: true });
+  if (found.error) return found.error;
   const url = new URL(req.url);
   const date = url.searchParams.get("date");
-  const duration = Number(url.searchParams.get("duration") ?? CLINIC.defaultDuration);
+  const duration = Number(url.searchParams.get("duration") ?? found.clinic.defaultDuration);
   if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return NextResponse.json({ error: "Query date=YYYY-MM-DD is required" }, { status: 400 });
   }
-  const day = await listSlotsForDate(date, Number.isFinite(duration) ? duration : 30);
-  return NextResponse.json({ ...day, timezone: CLINIC.timezone });
+  return NextResponse.json(await slotsJson(found.clinic, date, duration));
 }

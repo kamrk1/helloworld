@@ -1,4 +1,5 @@
 import type { AppointmentStatus } from "./clinic-config";
+import type { AdminClinicDTO } from "./clinic-runtime";
 
 export type AppointmentDTO = {
   id: string;
@@ -50,10 +51,13 @@ export type PrescriptionDTO = {
 };
 
 export type SnapshotDTO = {
+  clinic: AdminClinicDTO;
   appointments: AppointmentDTO[];
   patients: PatientDTO[];
   blocks: BlockDTO[];
   serverTime: string;
 };
 
-export const SNAPSHOT_CACHE_KEY = "sdc-snapshot-v1";
+export function snapshotCacheKey(clinicId: string) {
+  return `clinic-snapshot-v2:${clinicId}`;
+}
