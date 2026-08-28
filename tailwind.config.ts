@@ -10,16 +10,16 @@ const config: Config = {
     extend: {
       colors: {
         teal: {
-          DEFAULT: "var(--brand-primary, #0E6B6F)",
-          dark: "color-mix(in srgb, var(--brand-primary, #0E6B6F) 82%, black)",
-          mid: "color-mix(in srgb, var(--brand-primary, #0E6B6F) 88%, white)",
-          light: "color-mix(in srgb, var(--brand-primary, #0E6B6F) 14%, white)",
-          50: "color-mix(in srgb, var(--brand-primary, #0E6B6F) 6%, white)",
+          DEFAULT: "#0E6B6F",
+          dark: "#0A5558",
+          mid: "#148085",
+          light: "#E7F3F3",
+          50: "#F3FAFA",
         },
         gold: {
-          DEFAULT: "var(--brand-accent, #C9A35B)",
-          dark: "color-mix(in srgb, var(--brand-accent, #C9A35B) 82%, black)",
-          light: "color-mix(in srgb, var(--brand-accent, #C9A35B) 18%, white)",
+          DEFAULT: "#C9A35B",
+          dark: "#A6853F",
+          light: "#F8F1E3",
         },
         ivory: "#F7F5F2",
       },
