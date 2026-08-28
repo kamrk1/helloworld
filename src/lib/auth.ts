@@ -3,13 +3,14 @@ import { cookies } from "next/headers";
 import { HOSTED } from "./hosted-values";
 import { defaultClinicId } from "./clinic-config";
 
-function applyHosted(key: "ADMIN_PASSWORD" | "SESSION_SECRET" | "PLATFORM_PASSWORD") {
+function applyHosted(key: "ADMIN_PASSWORD" | "SESSION_SECRET" | "PLATFORM_PASSWORD" | "CLINIC_PASSWORD_PEPPER") {
   const value = HOSTED[key as keyof typeof HOSTED];
   if (value && !process.env[key]) process.env[key] = value;
 }
 applyHosted("ADMIN_PASSWORD");
 applyHosted("SESSION_SECRET");
 applyHosted("PLATFORM_PASSWORD");
+applyHosted("CLINIC_PASSWORD_PEPPER");
 
 const COOKIE = "sdc_session";
 const MAX_AGE = 60 * 60 * 24 * 7;
@@ -108,10 +109,22 @@ export function clearSessionCookie() {
   };
 }
 
+/**
+ * HMAC key for staff password digests. Prefer CLINIC_PASSWORD_PEPPER (same
+ * wrangler secret on every host that mints or checks a digest). Falls back to
+ * SESSION_SECRET so existing sdc rows keep working.
+ */
+function passwordPepper() {
+  return process.env["CLINIC_PASSWORD_PEPPER"] || sessionSecret();
+}
+
+function clinicHmac(clinicId: string, password: string, secret: string) {
+  return createHmac("sha256", secret).update(`clinic:${clinicId}:v1:${password}`).digest("base64url");
+}
+
+/** Mint a digest in this process only — never copy a hash from another host. */
 export function clinicPasswordDigest(clinicId: string, password: string) {
-  return createHmac("sha256", sessionSecret())
-    .update(`clinic:${clinicId}:v1:${password}`)
-    .digest("base64url");
+  return clinicHmac(clinicId, password, passwordPepper());
 }
 
 function safeEqualString(provided: string, expected: string) {
@@ -127,7 +140,14 @@ function safeEqualString(provided: string, expected: string) {
 
 export function checkClinicPassword(clinicId: string, password: string, storedDigest: string) {
   if (storedDigest) {
-    return safeEqualString(clinicPasswordDigest(clinicId, password), storedDigest);
+    const keys = [passwordPepper(), sessionSecret()];
+    const seen = new Set<string>();
+    for (const key of keys) {
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (safeEqualString(clinicHmac(clinicId, password, key), storedDigest)) return true;
+    }
+    return false;
   }
   // One-time migration: sdc still uses env ADMIN_PASSWORD until hashed onto the row.
   if (clinicId === defaultClinicId()) {

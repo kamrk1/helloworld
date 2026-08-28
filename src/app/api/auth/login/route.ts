@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { clinicPasswordDigest, checkClinicPassword, createClinicSessionToken, sessionCookie } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { ensureSdcClinic } from "@/lib/tenant";
+import { ensureKnownClinics } from "@/lib/tenant";
 import { defaultClinicId, isValidClinicSlug } from "@/lib/clinic-config";
 
 export async function POST(req: Request) {
   try {
-    await ensureSdcClinic();
+    await ensureKnownClinics();
     const body = (await req.json()) as { password?: string; clinicId?: string };
     const password = body.password ?? "";
     const clinicId = (body.clinicId || defaultClinicId()).trim().toLowerCase();

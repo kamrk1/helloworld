@@ -4,4 +4,5 @@ export const HOSTED: {
   ADMIN_PASSWORD?: string;
   SESSION_SECRET?: string;
   PLATFORM_PASSWORD?: string;
+  CLINIC_PASSWORD_PEPPER?: string;
 } = {};

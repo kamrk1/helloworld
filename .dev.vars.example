@@ -1,5 +1,6 @@
 # Copied to .dev.vars for `npm run preview` (gitignored).
 # Production: wrangler secret put DATABASE_URL / ADMIN_PASSWORD / SESSION_SECRET / PLATFORM_PASSWORD
+# Optional: wrangler secret put CLINIC_PASSWORD_PEPPER  (same value on every host that hashes clinic passwords)
 NEXTJS_ENV=production
 DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/postgres?sslmode=require"
 ADMIN_PASSWORD="changeme"

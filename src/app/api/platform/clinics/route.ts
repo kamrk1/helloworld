@@ -10,7 +10,7 @@ import {
   DEFAULT_SERVICES,
 } from "@/lib/clinic-config";
 import { toClinicRuntime } from "@/lib/clinic-runtime";
-import { ensureSdcClinic } from "@/lib/tenant";
+import { ensureKnownClinics } from "@/lib/tenant";
 
 function platformClinicJson(row: Awaited<ReturnType<typeof prisma.clinic.findMany>>[number]) {
   const runtime = toClinicRuntime(row);
@@ -20,6 +20,7 @@ function platformClinicJson(row: Awaited<ReturnType<typeof prisma.clinic.findMan
     shortName: runtime.shortName,
     tagline: runtime.tagline,
     enabled: runtime.enabled,
+    hasPassword: Boolean(row.passwordDigest),
     timezone: runtime.timezone,
     hours: runtime.hours,
     slotMinutes: runtime.slotMinutes,
@@ -32,7 +33,7 @@ function platformClinicJson(row: Awaited<ReturnType<typeof prisma.clinic.findMan
 export async function GET() {
   const auth = await requirePlatform();
   if (auth.error) return auth.error;
-  await ensureSdcClinic();
+  await ensureKnownClinics();
   const rows = await prisma.clinic.findMany({ orderBy: { createdAt: "asc" } });
   return NextResponse.json(rows.map(platformClinicJson));
 }

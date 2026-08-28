@@ -10,6 +10,7 @@ type ClinicRow = {
   name: string;
   shortName: string;
   enabled: boolean;
+  hasPassword: boolean;
   hours: { start: string; end: string };
   defaultDuration: number;
   flags: FeatureFlags;
@@ -26,6 +27,8 @@ export default function PlatformHome() {
   const [hoursOpen, setHoursOpen] = useState("09:00");
   const [hoursClose, setHoursClose] = useState("17:00");
   const [defaultDuration, setDefaultDuration] = useState(15);
+  const [resetFor, setResetFor] = useState<string | null>(null);
+  const [resetPassword, setResetPassword] = useState("");
   const [flags, setFlags] = useState<FeatureFlags>({
     publicBooking: true,
     pendingApproval: true,
@@ -83,6 +86,26 @@ export default function PlatformHome() {
     }
   }
 
+  async function savePassword(e: React.FormEvent, id: string) {
+    e.preventDefault();
+    if (!resetPassword.trim()) return;
+    setBusy(true);
+    setError("");
+    try {
+      await apiJson(`/api/platform/clinics/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: resetPassword }),
+      });
+      setResetFor(null);
+      setResetPassword("");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Password reset failed");
+    } finally {
+      setBusy(false);
+    }
+  }
   async function toggleEnabled(id: string, enabled: boolean) {
     try {
       await apiJson(`/api/platform/clinics/${id}`, {
@@ -109,6 +132,10 @@ export default function PlatformHome() {
           <div>
             <h1 className="font-display text-3xl font-semibold text-teal-dark">Clinics</h1>
             <p className="text-sm text-slate-500">Create tenants, set package flags, disable a clinic.</p>
+            <p className="mt-1 text-sm text-slate-500">
+              Staff passwords are hashed on <span className="font-medium">this host</span>. If a clinic cannot log in
+              after a deploy, use <span className="font-medium">Reset password</span> here — not a laptop script.
+            </p>
           </div>
           <button className="btn-ghost" onClick={logout}>
             Sign out
@@ -126,6 +153,9 @@ export default function PlatformHome() {
                 </div>
                 <div className="text-sm text-slate-500">
                   {c.hours.start}–{c.hours.end} · {c.defaultDuration} min · Rx {c.flags.prescriptions ? "on" : "off"}
+                  {!c.hasPassword && (
+                    <span className="ml-2 font-semibold text-amber-700">no password set — reset it here</span>
+                  )}
                 </div>
               </div>
               <a className="btn-secondary" href={bookingPath(c.id)}>
@@ -134,6 +164,44 @@ export default function PlatformHome() {
               <a className="btn-secondary" href={adminBase(c.id)}>
                 Admin
               </a>
+              {resetFor === c.id ? (
+                <form className="flex flex-wrap items-center gap-2" onSubmit={(e) => savePassword(e, c.id)}>
+                  <input
+                    className="input w-44"
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder="New staff password"
+                    value={resetPassword}
+                    onChange={(e) => setResetPassword(e.target.value)}
+                    required
+                    minLength={4}
+                  />
+                  <button className="btn-primary" type="submit" disabled={busy}>
+                    Save password
+                  </button>
+                  <button
+                    className="btn-ghost"
+                    type="button"
+                    onClick={() => {
+                      setResetFor(null);
+                      setResetPassword("");
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </form>
+              ) : (
+                <button
+                  className="btn-secondary"
+                  type="button"
+                  onClick={() => {
+                    setResetFor(c.id);
+                    setResetPassword("");
+                  }}
+                >
+                  Reset password
+                </button>
+              )}
               <button className="btn-ghost" onClick={() => toggleEnabled(c.id, !c.enabled)}>
                 {c.enabled ? "Disable" : "Enable"}
               </button>
@@ -143,6 +211,10 @@ export default function PlatformHome() {
 
         <form onSubmit={createClinic} className="card mt-8 space-y-3 p-5">
           <h2 className="font-display text-xl text-teal-dark">New clinic</h2>
+          <p className="text-sm text-slate-500">
+            The admin password is hashed in this app process. Create tenants on the Worker that serves login, not from a
+            local script against production Postgres.
+          </p>
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label className="label">Slug (clinic ID)</label>

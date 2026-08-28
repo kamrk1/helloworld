@@ -13,6 +13,7 @@ applyHosted("DATABASE_URL");
 applyHosted("ADMIN_PASSWORD");
 applyHosted("SESSION_SECRET");
 applyHosted("PLATFORM_PASSWORD");
+applyHosted("CLINIC_PASSWORD_PEPPER");
 
 if (!process.env["DATABASE_URL"]) {
   process.env["DATABASE_URL"] = "file:./clinic.db";

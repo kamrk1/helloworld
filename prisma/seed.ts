@@ -29,6 +29,8 @@ function arg(name: string) {
 }
 
 async function main() {
+  // Hashes sdc with this process's secret only when the row has no digest.
+  // Does not mint demo2 — that belongs on the host that serves /login (Worker boot-ensure or /platform).
   await ensureSdcClinic();
   const clinicId = (arg("--clinic") || process.env["SEED_CLINIC_ID"] || defaultClinicId()).toLowerCase();
   const existing = await prisma.patient.count({ where: { clinicId } });

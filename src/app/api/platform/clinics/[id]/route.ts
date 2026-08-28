@@ -16,6 +16,7 @@ function platformClinicJson(row: NonNullable<Awaited<ReturnType<typeof prisma.cl
     shortName: runtime.shortName,
     tagline: runtime.tagline,
     enabled: runtime.enabled,
+    hasPassword: Boolean(row.passwordDigest),
     timezone: runtime.timezone,
     hours: runtime.hours,
     slotMinutes: runtime.slotMinutes,

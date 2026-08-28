@@ -61,6 +61,7 @@ export async function ensureSdcClinic() {
     reviewUrl?: string;
     flagsJson?: string;
   } = {};
+  // Never overwrite a digest that already exists (sdc's live password stays put).
   if (!existing.passwordDigest && envPassword) {
     patch.passwordDigest = clinicPasswordDigest(id, envPassword);
   }
@@ -75,8 +76,54 @@ export async function ensureSdcClinic() {
   }
 }
 
-export async function getClinicRow(id: string) {
+/** Well-known second tenant for isolation demos. Password is documented, not a production secret. */
+export const DEMO2_CLINIC_ID = "demo2";
+export const DEMO2_STAFF_PASSWORD = "Demo2-Aug2026";
+
+async function ensureDemo2Clinic() {
+  const id = DEMO2_CLINIC_ID;
+  const existing = await prisma.clinic.findUnique({ where: { id } });
+  if (!existing) {
+    await prisma.clinic.create({
+      data: {
+        id,
+        name: "Demo Two Dental",
+        shortName: "DEMO2",
+        tagline: "Second tenant",
+        passwordDigest: clinicPasswordDigest(id, DEMO2_STAFF_PASSWORD),
+        timezone: DEFAULT_CLINIC.timezone,
+        hoursOpen: "09:00",
+        hoursClose: "17:00",
+        closedWeekdays: JSON.stringify([0]),
+        slotMinutes: 15,
+        defaultDuration: 15,
+        durationsJson: JSON.stringify([15, 30, 45]),
+        servicesJson: sdcServices,
+        brandPrimary: DEFAULT_CLINIC.brand.primary,
+        brandAccent: DEFAULT_CLINIC.brand.accent,
+        flagsJson: JSON.stringify({ ...DEFAULT_FLAGS, prescriptions: false }),
+        rxJson: JSON.stringify(DEFAULT_RX),
+        enabled: true,
+      },
+    });
+    return;
+  }
+  if (!existing.passwordDigest) {
+    await prisma.clinic.update({
+      where: { id },
+      data: { passwordDigest: clinicPasswordDigest(id, DEMO2_STAFF_PASSWORD) },
+    });
+  }
+}
+
+/** Mint sdc + demo2 digests in this process (the host that will verify login). */
+export async function ensureKnownClinics() {
   await ensureSdcClinic();
+  await ensureDemo2Clinic();
+}
+
+export async function getClinicRow(id: string) {
+  await ensureKnownClinics();
   if (!isValidClinicSlug(id)) return null;
   return prisma.clinic.findUnique({ where: { id } });
 }

@@ -26,10 +26,13 @@ Do **not** treat generic `/login` as an sdc-only page — Capacitor starts there
 
 ### Auth
 
-- Clinic password is stored as `passwordDigest` = HMAC-SHA256(`SESSION_SECRET`, `clinic:{id}:v1:{password}`) — same strength family as the session cookie, keyed per clinic.
-- Existing `ADMIN_PASSWORD` is migrated onto clinic `sdc` (hashed) on first boot. Keep the Worker secret so the backfill can run.
+- Clinic password is stored as `passwordDigest` = HMAC-SHA256(`CLINIC_PASSWORD_PEPPER` or `SESSION_SECRET`, `clinic:{id}:v1:{password}`). Mint the hash **on the same host that will verify login** (the Worker). A digest written from a laptop or cloud-agent build with a different secret will 401.
+- Optional wrangler secret `CLINIC_PASSWORD_PEPPER`: set the **same** value on every host that creates or checks clinic passwords. If unset, `SESSION_SECRET` is used. Login still accepts digests minted with `SESSION_SECRET` so existing `sdc` rows keep working.
+- Existing `ADMIN_PASSWORD` is migrated onto clinic `sdc` (hashed) on first boot **only if the row has no digest**. Keep the Worker secret for that backfill. This process never overwrites `sdc`’s live password.
 - Platform password is `PLATFORM_PASSWORD` (demo default `platform-demo` if unset). Set a real secret in production: `npx wrangler secret put PLATFORM_PASSWORD`.
 - Session cookie `sdc_session` is path `/` and payload `{ role: "clinic", clinicId }` or `{ role: "platform" }`. Editing the URL cannot hop clinics; admin APIs use the session clinic only.
+
+**If a clinic cannot log in after deploy:** sign in at `/platform` **on that same host** (the Worker URL, not localhost) and use **Reset password**. That PATCH hashes with the Worker’s secret. Do not re-run `scripts/verify-tenants.ts` against production Postgres to “fix” a password.
 
 ### What clinic staff can edit (Settings)
 
@@ -39,11 +42,13 @@ Name, logo (bytes in Postgres, served at `/api/clinics/{id}/logo`), hours, slot 
 
 ### Create a clinic
 
-1. Sign in at `/platform/login`.
-2. Create slug, name, password, hours, default duration, and flags.
+1. Sign in at `/platform/login` **on the host that serves `/login`** (production: the Worker).
+2. Create slug, name, password, hours, default duration, and flags. The password is hashed in that process.
 3. Give the clinic `/c/{slug}/login` (or the generic `/login` + clinic ID) and `/c/{slug}` for public booking.
 
-Demo tenant used in verification: **`demo2`** (password `Demo2-Aug2026`), 09:00–17:00, 15-minute default, prescriptions off.
+Do **not** insert tenant passwords from a laptop script or CI job into the hosted database. `scripts/verify-tenants.ts` will not write a `demo2` digest against Postgres.
+
+Demo tenant: **`demo2`** (documented password `Demo2-Aug2026`), 09:00–17:00, 15-minute default, prescriptions off. The Worker boot-ensures this row (creates it, or fills an empty digest) using **this** process’s HMAC key. It never overwrites a digest that is already set.
 
 ## How data works
 
@@ -145,6 +150,8 @@ npx wrangler secret put DATABASE_URL      # existing Prisma Postgres URL
 npx wrangler secret put ADMIN_PASSWORD    # migrated onto clinic sdc
 npx wrangler secret put SESSION_SECRET
 npx wrangler secret put PLATFORM_PASSWORD
+# optional, but then use the same value everywhere passwords are minted:
+# npx wrangler secret put CLINIC_PASSWORD_PEPPER
 
 npm run deploy                   # OpenNext build + wrangler deploy to proud-truth-84df
 ```
@@ -160,7 +167,8 @@ That deploy overwrites the Hello World worker at **https://proud-truth-84df.kamr
 | `DATABASE_URL` | secret | yes | Existing Prisma Postgres URL (`postgresql://…@db.prisma.io:5432/postgres?sslmode=require`). Same database as before. |
 | `ADMIN_PASSWORD` | secret | yes | Migrated onto clinic `sdc` as `passwordDigest`. Keep for the backfill. |
 | `PLATFORM_PASSWORD` | secret | yes in production | `/platform` operator password. Demo default `platform-demo` if unset. |
-| `SESSION_SECRET` | secret | yes | HMAC for the session cookie **and** clinic password digests |
+| `SESSION_SECRET` | secret | yes | HMAC for the session cookie. Also used for clinic password digests when `CLINIC_PASSWORD_PEPPER` is unset. |
+| `CLINIC_PASSWORD_PEPPER` | secret | no | Dedicated HMAC key for clinic passwords. Set the same value on every host that mints or checks a digest. |
 | `DEFAULT_CLINIC_ID` | var / env | no | Compatibility shims (`/`, `/admin`, `/api/slots`) use `sdc` |
 | `NEXTJS_ENV` | var (`wrangler.jsonc`) | no | Defaults to `production` |
 | `NEXT_PUBLIC_CLINIC_PHONE` | build env | no | Inlined at `next build`. Set in `.env` / `.env.local` before deploy. |
@@ -189,7 +197,8 @@ Worker size limit is 3 MiB gzip on the free plan (10 MiB paid). If deploy fails 
 | `ADMIN_PASSWORD` | yes | Migrated onto clinic `sdc`. Local default `changeme`. |
 | `PLATFORM_PASSWORD` | no | `/platform` password. Defaults to `platform-demo` if unset. |
 | `DEFAULT_CLINIC_ID` | no | Shim clinic for `/` and `/admin`. Defaults to `sdc`. |
-| `SESSION_SECRET` | yes | HMAC secret for the session cookie and clinic password digests. Use a long random string in production. |
+| `SESSION_SECRET` | yes | HMAC secret for the session cookie (and clinic passwords if no pepper). Use a long random string in production. |
+| `CLINIC_PASSWORD_PEPPER` | no | Dedicated HMAC key for clinic staff passwords. Prefer this over hashing with `SESSION_SECRET` when the same Postgres is used from more than one host. |
 | `NEXT_PUBLIC_REVIEW_URL` | no | Shown on the appointment panel (Google review link). |
 | `NEXT_PUBLIC_CLINIC_PHONE` | no | 10-digit number shown on the public page. |
 | `NEXT_PUBLIC_CLINIC_ADDRESS` | no | Printed on prescriptions. |
