@@ -4,7 +4,8 @@ import { useEffect, useRef } from "react";
 
 /**
  * Escape and hardware/browser Back close an overlay without leaving the page.
- * Pushes a dummy history entry while open; X/unmount pops it if still on top.
+ * Pushes a dummy history entry after paint so React Strict Mode remounts do not
+ * immediately popstate-close the sheet.
  */
 export function useOverlayDismiss(onClose: () => void) {
   const onCloseRef = useRef(onClose);
@@ -13,32 +14,42 @@ export function useOverlayDismiss(onClose: () => void) {
 
   useEffect(() => {
     const token = tokenRef.current;
-    const prev = history.state && typeof history.state === "object" ? history.state : {};
-    history.pushState({ ...prev, __clinicOverlay: token }, "");
+    let cancelled = false;
+    let pushed = false;
 
     function isTopOverlay() {
       const state = history.state;
       return Boolean(state && typeof state === "object" && state.__clinicOverlay === token);
     }
 
+    function pushEntry() {
+      if (cancelled || pushed) return;
+      const prev = history.state && typeof history.state === "object" ? history.state : {};
+      history.pushState({ ...prev, __clinicOverlay: token }, "");
+      pushed = true;
+    }
+
+    const raf = requestAnimationFrame(pushEntry);
+
     function onKey(e: KeyboardEvent) {
       if (e.key !== "Escape") return;
-      if (!isTopOverlay()) return;
+      if (pushed && !isTopOverlay()) return;
       e.preventDefault();
       onCloseRef.current();
     }
     function onPop() {
-      // Nested overlay popped back to us — stay open.
+      if (cancelled) return;
       if (isTopOverlay()) return;
       onCloseRef.current();
     }
     window.addEventListener("keydown", onKey);
     window.addEventListener("popstate", onPop);
     return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf);
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("popstate", onPop);
-      const state = history.state;
-      if (state && typeof state === "object" && state.__clinicOverlay === token) {
+      if (pushed && isTopOverlay()) {
         history.back();
       }
     };
