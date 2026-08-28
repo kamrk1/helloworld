@@ -75,12 +75,28 @@ export function toPublicClinic(runtime: ClinicRuntime) {
 }
 
 export function toAdminClinic(runtime: ClinicRuntime) {
+  const pub = toPublicClinic(runtime);
   return {
-    ...toPublicClinic(runtime),
+    id: pub.id,
+    name: pub.name,
+    shortName: pub.shortName,
+    tagline: pub.tagline,
+    timezone: pub.timezone,
+    hours: pub.hours,
+    slotMinutes: pub.slotMinutes,
+    defaultDuration: pub.defaultDuration,
+    durations: pub.durations,
+    closedWeekdays: pub.closedWeekdays,
+    services: pub.services,
+    phone: pub.phone,
+    address: pub.address,
+    brand: pub.brand,
+    hasLogo: pub.hasLogo,
+    logoUrl: pub.logoUrl,
+    enabled: pub.enabled,
     reviewUrl: runtime.reviewUrl,
     flags: runtime.flags,
     rx: runtime.rx,
-    logoUrl: runtime.hasLogo ? clinicLogoUrl(runtime.id, runtime.updatedAt) : "/logo.svg",
   };
 }
 
