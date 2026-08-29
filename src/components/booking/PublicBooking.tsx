@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { addDays, istDateTimeFromIsoDate, toISODateIST, weekdayIST } from "@/lib/datetime";
-import { displayPhone } from "@/lib/phone";
+import { displayPhone, isValidPhone, normalizePhone } from "@/lib/phone";
 import { apiJson } from "@/lib/api-client";
 import type { Slot, SlotReason } from "@/lib/slot-logic";
 import type { PublicClinicDTO } from "@/lib/clinic-runtime";
@@ -112,6 +112,14 @@ export function PublicBooking({ clinic }: { clinic: PublicClinicDTO }) {
       setError("Pick a time slot");
       return;
     }
+    if (!name.trim()) {
+      setError("Patient name is required");
+      return;
+    }
+    if (!isValidPhone(phone)) {
+      setError("Enter a 10-digit mobile number");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -120,7 +128,15 @@ export function PublicBooking({ clinic }: { clinic: PublicClinicDTO }) {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, phone, email, service, date, time, notes }),
+          body: JSON.stringify({
+            name: name.trim(),
+            phone: normalizePhone(phone),
+            email,
+            service,
+            date,
+            time,
+            notes,
+          }),
         },
       );
       setDone({ ref: json.appointment.ref });

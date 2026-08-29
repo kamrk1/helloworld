@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireClinic } from "@/lib/require-admin";
-import { patientCreateSchema } from "@/lib/validation";
+import { humanZodMessage, patientCreateSchema } from "@/lib/validation";
 import { normalizePhone, isValidPhone } from "@/lib/phone";
 import { toPatientDTO } from "@/lib/serializers";
 
@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     const json = await req.json();
     const parsed = patientCreateSchema.safeParse(json);
     if (!parsed.success) {
-      return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid input" }, { status: 400 });
+      return NextResponse.json({ error: humanZodMessage(parsed.error) }, { status: 400 });
     }
     const phone = normalizePhone(parsed.data.phone);
     if (!isValidPhone(phone)) {

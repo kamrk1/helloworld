@@ -75,10 +75,10 @@
 
 /* FullCalendar — Google Calendar-like chrome */
 .fc {
-  --fc-border-color: #e8ecec;
+  --fc-border-color: #dadce0;
   --fc-page-bg-color: #ffffff;
-  --fc-neutral-bg-color: #f7f5f2;
-  --fc-today-bg-color: color-mix(in srgb, var(--brand-primary, #0e6b6f) 6%, white);
+  --fc-neutral-bg-color: #f8f9fa;
+  --fc-today-bg-color: #fffdf8;
   --fc-now-indicator-color: var(--brand-primary, #0e6b6f);
   --fc-highlight-color: color-mix(in srgb, var(--brand-primary, #0e6b6f) 38%, transparent);
   --fc-event-border-color: transparent;
@@ -93,11 +93,28 @@
 
 .fc .fc-scrollgrid {
   border-radius: 12px;
-  border-color: #e5ebeb !important;
+  border-color: #dadce0 !important;
 }
 
 .fc .fc-timegrid-slot {
   height: 3rem;
+  border-bottom: 1px solid #eee;
+}
+
+.fc .fc-timegrid-slot-minor {
+  border-bottom: 1px solid #eee;
+}
+
+.fc .fc-timegrid-slot:not(.fc-timegrid-slot-minor) {
+  border-bottom: 1px solid #dadce0;
+}
+
+.fc .fc-timegrid-col {
+  border-left: 1px solid #dadce0;
+}
+
+.fc .fc-timegrid-axis {
+  border-right: 1px solid #dadce0;
 }
 
 @media (max-width: 768px) {
@@ -129,7 +146,7 @@
 }
 
 .fc .fc-timegrid-col.fc-day-today {
-  background: #f3fafa !important;
+  background: #fffdf8 !important;
 }
 
 .fc .fc-timegrid-now-indicator-line {
@@ -144,7 +161,12 @@
 
 .fc-theme-standard td,
 .fc-theme-standard th {
-  border-color: #eef1f1;
+  border-color: #dadce0;
+}
+
+.fc .fc-col-header-cell {
+  border-left: 1px solid #dadce0;
+  background: #fff;
 }
 
 /* Clip events to their own day column so a tall Thursday appointment cannot
@@ -170,7 +192,8 @@
 .fc .fc-timegrid-event-harness,
 .fc .fc-timegrid-event,
 .fc .fc-event,
-.fc .fc-event-main {
+.fc .fc-event-main,
+.fc .fc-event-resizer {
   pointer-events: auto;
 }
 
@@ -188,10 +211,10 @@
 
 .fc .fc-event {
   border: none !important;
-  border-radius: 6px !important;
-  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06);
+  border-radius: 4px !important;
+  box-shadow: inset 4px 0 0 currentColor, 0 1px 1px rgba(60, 64, 67, 0.12);
   font-size: 12px;
-  padding: 1px 4px;
+  padding: 1px 6px 8px 8px;
   overflow: hidden;
 }
 
@@ -200,25 +223,51 @@
 }
 
 .fc .evt-pending {
-  background: #c9a35b !important;
-  color: #3f2e12 !important;
+  background: #f8efe0 !important;
+  color: #8a6a2b !important;
 }
 
 .fc .evt-approved {
-  background: #0e6b6f !important;
-  color: #fff !important;
+  background: #e7f3f3 !important;
+  color: #0e6b6f !important;
 }
 
 .fc .evt-confirmed {
-  background: #0a5558 !important;
-  color: #fff !important;
+  background: #d8ecec !important;
+  color: #0a5558 !important;
 }
 
 .fc .evt-rejected,
 .fc .evt-cancelled {
-  background: #cbd5e1 !important;
-  color: #475569 !important;
+  background: #f1f3f4 !important;
+  color: #5f6368 !important;
   text-decoration: line-through;
+}
+
+/* Visible bottom-edge resize handle (GCal-style). */
+.fc .fc-event-resizer {
+  pointer-events: auto;
+  height: 10px !important;
+  cursor: ns-resize;
+}
+
+.fc .fc-timegrid-event .fc-event-resizer-end,
+.fc .fc-event-resizer.fc-event-resizer-end {
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 10px !important;
+}
+
+.fc .fc-timegrid-event .fc-event-resizer-end::after {
+  content: "";
+  display: block;
+  width: 28px;
+  height: 3px;
+  margin: 3px auto 0;
+  border-radius: 2px;
+  background: currentColor;
+  opacity: 0.45;
 }
 
 .fc .evt-block {

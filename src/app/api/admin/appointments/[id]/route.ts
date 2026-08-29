@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireClinic } from "@/lib/require-admin";
-import { appointmentPatchSchema } from "@/lib/validation";
+import { appointmentPatchSchema, humanZodMessage } from "@/lib/validation";
 import { addMinutes } from "@/lib/datetime";
 import { assertBookable } from "@/lib/slots";
 import { appointmentInclude, refreshPatientStats, toAppointmentDTO } from "@/lib/serializers";
@@ -34,7 +34,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
     const json = await req.json();
     const parsed = appointmentPatchSchema.safeParse(json);
     if (!parsed.success) {
-      return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid input" }, { status: 400 });
+      return NextResponse.json({ error: humanZodMessage(parsed.error) }, { status: 400 });
     }
     const data = parsed.data;
     const startAt = data.startAt ? new Date(data.startAt) : existing.startAt;

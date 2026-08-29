@@ -6,6 +6,7 @@ import { PatientTypeahead } from "./PatientTypeahead";
 import { useAdminData } from "./AdminDataProvider";
 import { useToast } from "./Toast";
 import { toHHMMIST, toISODateIST } from "@/lib/datetime";
+import { isValidPhone, normalizePhone } from "@/lib/phone";
 import type { AppointmentDTO, PatientDTO } from "@/lib/types";
 import { apiJson } from "@/lib/api-client";
 
@@ -46,20 +47,44 @@ export function AppointmentFormModal({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    setBusy(true);
     setError("");
+    if (!patientId) {
+      if (!name.trim()) {
+        setError("Patient name is required");
+        return;
+      }
+      if (!isValidPhone(phone)) {
+        setError("Enter a 10-digit mobile number");
+        return;
+      }
+    }
+    if (!date || !time) {
+      setError("Choose a date and time.");
+      return;
+    }
     const startAt = new Date(`${date}T${time}:00+05:30`);
-    const payload = {
-      patientId: patientId || undefined,
-      name,
-      phone,
-      email,
+    if (Number.isNaN(startAt.getTime())) {
+      setError("Choose a date and time.");
+      return;
+    }
+    const payload: Record<string, unknown> = {
       service,
       startAt: startAt.toISOString(),
       durationMin,
       notes: notes || null,
       status: appointment?.status ?? "APPROVED",
     };
+    if (patientId) {
+      payload.patientId = patientId;
+      if (name.trim()) payload.name = name.trim();
+      if (phone.trim()) payload.phone = normalizePhone(phone);
+      if (email.trim()) payload.email = email.trim();
+    } else {
+      payload.name = name.trim();
+      payload.phone = normalizePhone(phone);
+      if (email.trim()) payload.email = email.trim();
+    }
+    setBusy(true);
     try {
       const url = appointment
         ? `/api/admin/appointments/${appointment.id}`

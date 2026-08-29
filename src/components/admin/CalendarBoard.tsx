@@ -16,7 +16,7 @@ import type { DateClickArg, EventResizeDoneArg } from "@fullcalendar/interaction
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { durationMinutes, fromCalendarDateClick, fromCalendarMarker } from "@/lib/datetime";
 import { overlaps } from "@/lib/slot-logic";
-import { hhmmDuration, snapToAllowed } from "@/lib/hours-label";
+import { hhmmDuration, snapToSlotMinutes } from "@/lib/hours-label";
 import type { AppointmentDTO, BlockDTO } from "@/lib/types";
 import { useAdminData } from "./AdminDataProvider";
 import { useToast } from "./Toast";
@@ -24,10 +24,6 @@ import { AppointmentFormModal } from "./AppointmentFormModal";
 import { BlockFormModal } from "./BlockFormModal";
 import { EventDrawer } from "./EventDrawer";
 import { apiJson, reachabilityBanner, UNREACHABLE_BANNER } from "@/lib/api-client";
-
-function snapDuration(minutes: number, allowed: number[]) {
-  return snapToAllowed(minutes, allowed);
-}
 
 function toEvents(appointments: AppointmentDTO[], blocks: BlockDTO[]): EventInput[] {
   const appts: EventInput[] = appointments
@@ -69,7 +65,10 @@ function EventInner({ arg }: { arg: EventContentArg }) {
   return (
     <div className="h-full min-h-0 overflow-hidden leading-tight">
       <div className="truncate font-semibold">{arg.event.title}</div>
-      <div className="truncate text-[11px] opacity-90">{appt?.service}</div>
+      <div className="truncate text-[11px] opacity-90">
+        {arg.timeText}
+        {appt?.service ? ` · ${appt.service}` : ""}
+      </div>
     </div>
   );
 }
@@ -201,9 +200,10 @@ export function CalendarBoard() {
     const rawEnd = info.event.end
       ? fromCalendarMarker(info.event.end, info.event.endStr)
       : new Date(start.getTime() + prev.durationMin * 60_000);
-    const durationMin = snapDuration(durationMinutes(start, rawEnd), clinic.durations);
+    const durationMin = snapToSlotMinutes(durationMinutes(start, rawEnd), clinic.slotMinutes);
     const startAt = start.toISOString();
     const endAt = new Date(start.getTime() + durationMin * 60_000).toISOString();
+    const resized = "endDelta" in info;
     upsertAppointment({ ...prev, startAt, endAt, durationMin });
     try {
       const json = await apiJson<AppointmentDTO>(`/api/admin/appointments/${id}`, {
@@ -212,11 +212,11 @@ export function CalendarBoard() {
         body: JSON.stringify({ startAt, durationMin }),
       });
       upsertAppointment(json);
-      toast.push("Appointment moved");
+      toast.push(resized ? "Appointment updated" : "Appointment moved");
     } catch (err) {
       upsertAppointment(prev);
       info.revert();
-      toast.push(err instanceof Error ? err.message : "Move failed", "err");
+      toast.push(err instanceof Error ? err.message : resized ? "Update failed" : "Move failed", "err");
     }
   }
 
@@ -287,7 +287,7 @@ export function CalendarBoard() {
             selectable
             selectMirror
             selectMinDistance={4}
-            slotEventOverlap={false}
+            slotEventOverlap
             editable
             eventDurationEditable
             eventResizableFromStart={false}

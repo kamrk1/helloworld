@@ -30,3 +30,11 @@ export function snapToAllowed(minutes: number, allowed: number[]) {
   const list = allowed.length ? allowed : [30];
   return list.reduce((best, n) => (Math.abs(n - minutes) < Math.abs(best - minutes) ? n : best), list[0]);
 }
+
+/** Snap a duration to clinic slotMinutes (5–480). Used for drag-resize, not the form chips. */
+export function snapToSlotMinutes(minutes: number, slotMinutes: number) {
+  const step = Math.max(5, Math.round(slotMinutes) || 15);
+  const raw = Number.isFinite(minutes) ? minutes : step;
+  const snapped = Math.round(raw / step) * step;
+  return Math.min(480, Math.max(step, snapped || step));
+}

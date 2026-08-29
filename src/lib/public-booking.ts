@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "./prisma";
-import { bookSchema } from "./validation";
+import { bookSchema, humanZodMessage } from "./validation";
 import { normalizePhone, isValidPhone } from "./phone";
 import { addMinutes, istDateTimeFromIsoDate } from "./datetime";
 import { assertBookable, listSlotsForDate } from "./slots";
@@ -43,7 +43,7 @@ export async function slotsJson(clinic: ClinicRuntime, date: string, durationMin
 export async function createPublicBooking(clinic: ClinicRuntime, json: unknown) {
   const parsed = bookSchema.safeParse(json);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid input" }, { status: 400 });
+    return NextResponse.json({ error: humanZodMessage(parsed.error) }, { status: 400 });
   }
   const data = parsed.data;
   const phone = normalizePhone(data.phone);

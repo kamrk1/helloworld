@@ -1,44 +1,82 @@
 import { z } from "zod";
 import { ALL_STATUSES } from "./clinic-config";
+import { isValidPhone, normalizePhone } from "./phone";
 
-export const phoneSchema = z
-  .string()
-  .min(8)
-  .max(20);
+function blankToUndefined(value: unknown) {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value === "string" && value.trim() === "") return undefined;
+  return value;
+}
+
+const indianMobile = z
+  .string({ required_error: "Enter a 10-digit mobile number", invalid_type_error: "Enter a 10-digit mobile number" })
+  .transform((s) => normalizePhone(s))
+  .refine((s) => isValidPhone(s), { message: "Enter a 10-digit mobile number" });
+
+/** Required 10-digit Indian mobile. Empty string is omitted then rejected. */
+export const phoneSchema = z.preprocess(blankToUndefined, indianMobile);
+
+/** Empty / missing phone is omitted; if present it must be a valid 10-digit mobile. */
+export const optionalPhoneSchema = z.preprocess(blankToUndefined, indianMobile.optional());
+
+const patientName = z
+  .string({ required_error: "Patient name is required", invalid_type_error: "Patient name is required" })
+  .trim()
+  .min(2, "Patient name is required")
+  .max(80);
 
 export const bookSchema = z.object({
-  name: z.string().trim().min(2).max(80),
+  name: patientName,
   phone: phoneSchema,
   email: z.string().trim().email().optional().or(z.literal("")),
-  service: z.string().trim().min(2).max(80),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  time: z.string().regex(/^\d{2}:\d{2}$/),
+  service: z.string().trim().min(2, "Choose a service").max(80),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a date"),
+  time: z.string().regex(/^\d{2}:\d{2}$/, "Choose a time"),
   notes: z.string().trim().max(500).optional().or(z.literal("")),
 });
 
-export const appointmentCreateSchema = z.object({
-  patientId: z.string().optional(),
-  name: z.string().trim().min(2).max(80).optional(),
-  phone: phoneSchema.optional(),
-  email: z.string().trim().email().optional().or(z.literal("")).optional(),
-  service: z.string().trim().min(2).max(80),
-  startAt: z.string().datetime({ offset: true }).or(z.string()),
-  durationMin: z.number().int().min(5).max(480),
-  notes: z.string().trim().max(1000).optional().nullable(),
-  status: z.enum(ALL_STATUSES).optional(),
-});
+export const appointmentCreateSchema = z
+  .object({
+    patientId: z.preprocess(blankToUndefined, z.string().min(1).optional()),
+    name: z.preprocess(blankToUndefined, patientName.optional()),
+    phone: optionalPhoneSchema,
+    email: z.string().trim().email().optional().or(z.literal("")).optional(),
+    service: z.string().trim().min(2, "Choose a service").max(80),
+    startAt: z.string().min(1, "Choose a date and time."),
+    durationMin: z
+      .number({ required_error: "Choose a duration between 5 and 480 minutes." })
+      .int()
+      .min(5, "Choose a duration between 5 and 480 minutes.")
+      .max(480, "Choose a duration between 5 and 480 minutes."),
+    notes: z.string().trim().max(1000).optional().nullable(),
+    status: z.enum(ALL_STATUSES).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.patientId) return;
+    if (!data.name) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["name"], message: "Patient name is required" });
+    }
+    if (!data.phone) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["phone"], message: "Enter a 10-digit mobile number" });
+    }
+  });
 
 export const appointmentPatchSchema = z.object({
-  service: z.string().trim().min(2).max(80).optional(),
-  startAt: z.string().optional(),
-  durationMin: z.number().int().min(5).max(480).optional(),
+  service: z.string().trim().min(2, "Choose a service").max(80).optional(),
+  startAt: z.string().min(1, "Choose a date and time.").optional(),
+  durationMin: z
+    .number()
+    .int()
+    .min(5, "Choose a duration between 5 and 480 minutes.")
+    .max(480, "Choose a duration between 5 and 480 minutes.")
+    .optional(),
   notes: z.string().trim().max(1000).optional().nullable(),
   status: z.enum(ALL_STATUSES).optional(),
   followupDate: z.string().nullable().optional(),
   googleCalEventId: z.string().nullable().optional(),
   rxLink: z.string().nullable().optional(),
-  name: z.string().trim().min(2).max(80).optional(),
-  phone: phoneSchema.optional(),
+  name: z.preprocess(blankToUndefined, patientName.optional()),
+  phone: optionalPhoneSchema,
   email: z.string().trim().email().optional().or(z.literal("")).nullable().optional(),
 });
 
@@ -50,7 +88,7 @@ export const blockCreateSchema = z.object({
 });
 
 export const patientCreateSchema = z.object({
-  name: z.string().trim().min(2).max(80),
+  name: patientName,
   phone: phoneSchema,
   email: z.string().trim().email().optional().or(z.literal("")),
   concerns: z.string().trim().max(300).optional().nullable(),
@@ -135,3 +173,25 @@ export const prescriptionSchema = z.object({
   followupNote: z.string().trim().max(500).optional().nullable(),
   followupDate: z.string().nullable().optional(),
 });
+
+const ZOD_NOISE =
+  /must contain at least|too_small|Invalid datetime|Invalid enum value|^Required$|Expected |Invalid (input|type|literal)/i;
+
+/** Never return raw Zod copy like "String must contain at least 8 character(s)". */
+export function humanZodMessage(error: z.ZodError, fallback = "Please check the form and try again."): string {
+  const issue = error.issues[0];
+  if (!issue) return fallback;
+  const msg = issue.message;
+  const path = issue.path.map(String).join(".");
+  if (ZOD_NOISE.test(msg) || msg.length > 80) {
+    if (path.includes("phone")) return "Enter a 10-digit mobile number";
+    if (path.includes("name")) return "Patient name is required";
+    if (path.includes("startAt")) return "Choose a date and time.";
+    if (path.includes("durationMin")) return "Choose a duration between 5 and 480 minutes.";
+    if (path.includes("service")) return "Choose a service.";
+    if (path.includes("date")) return "Choose a date.";
+    if (path.includes("time") || path.includes("slot")) return "Choose a time slot.";
+    return fallback;
+  }
+  return msg;
+}
