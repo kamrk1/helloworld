@@ -113,8 +113,11 @@
   border-left: 1px solid #dadce0;
 }
 
-.fc .fc-timegrid-axis {
-  border-right: 1px solid #dadce0;
+.fc .fc-timegrid-slots {
+  /* Grid lines must paint without stealing hits from events. Slots sit in a
+     z-index:1 layer; if they receive pointer events, drag/resize never starts
+     (dateClick overlap still opens the drawer, so clicks look fine). */
+  pointer-events: none;
 }
 
 @media (max-width: 768px) {
@@ -256,8 +259,9 @@
 }
 
 /* Visible bottom-edge resize handle (GCal-style). */
-.fc .fc-event-resizer {
+.fc .fc-event-resizable .fc-event-resizer {
   pointer-events: auto !important;
+  display: block !important;
   height: 12px !important;
   cursor: ns-resize;
   z-index: 6;
