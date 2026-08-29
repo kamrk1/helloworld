@@ -98,15 +98,15 @@
 
 .fc .fc-timegrid-slot {
   height: 3rem;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid #eee !important;
 }
 
 .fc .fc-timegrid-slot-minor {
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid #eee !important;
 }
 
 .fc .fc-timegrid-slot:not(.fc-timegrid-slot-minor) {
-  border-bottom: 1px solid #dadce0;
+  border-bottom: 1px solid #dadce0 !important;
 }
 
 .fc .fc-timegrid-col {
@@ -214,8 +214,22 @@
   border-radius: 4px !important;
   box-shadow: inset 4px 0 0 currentColor, 0 1px 1px rgba(60, 64, 67, 0.12);
   font-size: 12px;
-  padding: 1px 6px 8px 8px;
+  padding: 1px 6px 10px 8px;
   overflow: hidden;
+}
+
+.fc .fc-timegrid-event.fc-event-resizable::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 3px;
+  z-index: 5;
+  width: 28px;
+  height: 4px;
+  margin-left: -14px;
+  border-radius: 2px;
+  background: rgba(32, 33, 36, 0.4);
+  pointer-events: none;
 }
 
 .fc .fc-event-main {
@@ -263,11 +277,10 @@
   content: "";
   display: block;
   width: 28px;
-  height: 3px;
-  margin: 3px auto 0;
+  height: 4px;
+  margin: 4px auto 0;
   border-radius: 2px;
-  background: currentColor;
-  opacity: 0.45;
+  background: rgba(32, 33, 36, 0.45);
 }
 
 .fc .evt-block {
