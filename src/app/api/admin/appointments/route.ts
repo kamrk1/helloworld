@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma, runWithRequestPrisma } from "@/lib/prisma";
 import { requireClinic, requireClinicSession } from "@/lib/require-admin";
 import { appointmentCreateSchema, humanZodMessage } from "@/lib/validation";
 import { createOrReuseStaffPatient } from "@/lib/staff-patient";
@@ -31,6 +31,10 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  return runWithRequestPrisma(() => postAppointment(req));
+}
+
+async function postAppointment(req: Request) {
   const t0 = Date.now();
   const marks: Record<string, number> = {};
   const sessionAuth = await requireClinicSession();
