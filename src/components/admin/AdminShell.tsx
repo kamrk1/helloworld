@@ -15,7 +15,7 @@ import { useAdminData } from "./AdminDataProvider";
 import { adminBase } from "@/lib/clinic-config";
 import { clsx } from "clsx";
 import { InstallHint } from "./InstallHint";
-import { reachabilityBanner, UNREACHABLE_BANNER } from "@/lib/api-client";
+import { reachabilityBanner } from "@/lib/api-client";
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -112,11 +112,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               Offline — last saved calendar. Changes save when you’re back online.
             </p>
           )}
-          {banner === "unreachable" && (
-            <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-medium leading-snug text-amber-800">
-              {UNREACHABLE_BANNER}
-            </p>
-          )}
           {banner === "updating" && (
             <p className="mb-3 px-3 text-[11px] text-slate-400">Updating from cloud…</p>
           )}
@@ -136,9 +131,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           </div>
           {banner === "updating" && <span className="text-[11px] text-slate-400">Updating…</span>}
           {banner === "offline" && <span className="text-[11px] font-semibold text-amber-700">Offline</span>}
-          {banner === "unreachable" && (
-            <span className="text-[11px] font-semibold text-amber-700">Can’t reach server</span>
-          )}
         </header>
 
         <main

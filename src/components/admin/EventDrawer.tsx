@@ -23,7 +23,7 @@ export function EventDrawer({
   block?: BlockDTO;
   onClose: () => void;
 }) {
-  const { upsertAppointment, removeAppointment, removeBlock, snapshot } = useAdminData();
+  const { upsertAppointment, removeAppointment, upsertBlock, removeBlock, snapshot } = useAdminData();
   const toast = useToast();
   const [editing, setEditing] = useState(false);
   const [rx, setRx] = useState(false);
@@ -31,6 +31,7 @@ export function EventDrawer({
     appointment?.followupDate ? toISODateIST(new Date(appointment.followupDate)) : "",
   );
   const [busy, setBusy] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useOverlayDismiss(onClose);
 
@@ -75,34 +76,42 @@ export function EventDrawer({
 
   async function destroyAppt() {
     if (!appointment) return;
-    if (!confirm(`Delete ${appointment.ref}?`)) return;
-    setBusy(true);
+    const id = appointment.id;
+    const prev = appointment;
+    removeAppointment(id);
+    onClose();
     try {
-      const res = await apiFetch(`/api/admin/appointments/${appointment.id}`, { method: "DELETE" });
-      if (!res.ok) throw errorFromHttpResponse(res.status);
-      removeAppointment(appointment.id);
+      const res = await apiFetch(`/api/admin/appointments/${id}`, { method: "DELETE" });
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        upsertAppointment(prev);
+        toast.push(errorFromHttpResponse(res.status, body.error).message, "err");
+        return;
+      }
       toast.push("Appointment deleted");
-      onClose();
     } catch (err) {
-      toast.push(err instanceof Error ? err.message : "Failed", "err");
-    } finally {
-      setBusy(false);
+      upsertAppointment(prev);
+      toast.push(err instanceof Error ? err.message : "Could not delete appointment", "err");
     }
   }
 
   async function destroyBlock() {
     if (!block) return;
-    if (!confirm("Remove this clinic block?")) return;
+    const prev = block;
+    const id = block.id;
+    removeBlock(id);
+    onClose();
     try {
-      const res = await apiFetch(`/api/admin/blocks/${block.id}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/admin/blocks/${id}`, { method: "DELETE" });
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
-        toast.push(errorFromHttpResponse(res.status).message, "err");
+        upsertBlock(prev);
+        toast.push(errorFromHttpResponse(res.status, body.error).message, "err");
         return;
       }
-      removeBlock(block.id);
       toast.push("Block removed");
-      onClose();
     } catch (err) {
+      upsertBlock(prev);
       toast.push(err instanceof Error ? err.message : "Could not remove block", "err");
     }
   }
@@ -230,23 +239,77 @@ export function EventDrawer({
             </button>
             {live && (
               <>
-                <button className="btn-secondary" onClick={() => setEditing(true)}>
+                <button type="button" className="btn-secondary" onClick={() => setEditing(true)}>
                   Edit
                 </button>
                 {flags.prescriptions && (
-                  <button className="btn-gold" onClick={() => setRx(true)}>
+                  <button type="button" className="btn-gold" onClick={() => setRx(true)}>
                     <Printer className="h-4 w-4" /> Rx
                   </button>
                 )}
-                <button className="btn-ghost ml-auto text-red-600" onClick={destroyAppt}>
-                  <Trash2 className="h-4 w-4" /> Delete
-                </button>
+                {confirmDelete ? (
+                  <div className="ml-auto flex min-w-0 flex-1 items-center justify-end gap-2">
+                    <span className="hidden text-xs text-slate-500 sm:inline">Delete {live.ref}?</span>
+                    <button
+                      type="button"
+                      className="btn-secondary px-2.5"
+                      disabled={busy}
+                      onClick={() => setConfirmDelete(false)}
+                    >
+                      Keep
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-secondary border-slate-400 px-2.5 text-slate-800"
+                      disabled={busy}
+                      onClick={() => void destroyAppt()}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn-ghost ml-auto text-red-700"
+                    disabled={busy}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setConfirmDelete(true);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" /> Delete
+                  </button>
+                )}
               </>
             )}
             {block && (
-              <button className="btn-danger flex-1" onClick={destroyBlock}>
-                Remove block
-              </button>
+              confirmDelete ? (
+                <div className="flex w-full items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => setConfirmDelete(false)}
+                  >
+                    Keep
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-secondary border-slate-500 text-slate-800"
+                    onClick={() => void destroyBlock()}
+                  >
+                    Remove block
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="btn-secondary flex-1 border-slate-400 text-slate-700"
+                  onClick={() => setConfirmDelete(true)}
+                >
+                  Remove block
+                </button>
+              )
             )}
           </div>
         </aside>

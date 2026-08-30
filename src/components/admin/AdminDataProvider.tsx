@@ -7,9 +7,7 @@ import { DEFAULT_CLINIC } from "@/lib/clinic-config";
 import { toAdminClinic } from "@/lib/clinic-runtime";
 import {
   apiFetch,
-  OfflineError,
   SERVER_REACHABLE_EVENT,
-  SERVER_UNREACHABLE_EVENT,
 } from "@/lib/api-client";
 import { useOnlineStatus } from "./useOnlineStatus";
 
@@ -94,9 +92,9 @@ export function AdminDataProvider({
       setSnapshot(data);
       setFromCache(false);
       setServerUnreachable(false);
-    } catch (err) {
+    } catch {
       setFromCache(true);
-      setServerUnreachable(!(err instanceof OfflineError));
+      setServerUnreachable(false);
     } finally {
       setRefreshing(false);
     }
@@ -121,12 +119,9 @@ export function AdminDataProvider({
   }, [online, refresh]);
 
   useEffect(() => {
-    const down = () => setServerUnreachable(true);
     const up = () => setServerUnreachable(false);
-    window.addEventListener(SERVER_UNREACHABLE_EVENT, down);
     window.addEventListener(SERVER_REACHABLE_EVENT, up);
     return () => {
-      window.removeEventListener(SERVER_UNREACHABLE_EVENT, down);
       window.removeEventListener(SERVER_REACHABLE_EVENT, up);
     };
   }, []);

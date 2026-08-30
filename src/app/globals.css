@@ -114,10 +114,9 @@
 }
 
 .fc .fc-timegrid-slots {
-  /* Grid lines must paint without stealing hits from events. Slots sit in a
-     z-index:1 layer; if they receive pointer events, drag/resize never starts
-     (dateClick overlap still opens the drawer, so clicks look fine). */
-  pointer-events: none;
+  /* Empty-slot dateClick + drag-select need the slat table to receive hits.
+     Events still win: col layer is on top, harnesses have pointer-events auto. */
+  pointer-events: auto;
 }
 
 @media (max-width: 768px) {
@@ -186,6 +185,12 @@
   overflow: hidden !important;
 }
 
+.fc .fc-timegrid-col-bg {
+  /* Fill the column so .fc-highlight paints during drag-select. Hits pass through. */
+  bottom: 0;
+  pointer-events: none;
+}
+
 .fc .fc-timegrid-col-events,
 .fc .fc-timegrid-col-misc,
 .fc .fc-timegrid-now-indicator-container {
@@ -198,6 +203,7 @@
 .fc .fc-event-main,
 .fc .fc-event-resizer {
   pointer-events: auto;
+  z-index: 5;
 }
 
 /* Drag/resize mirrors sit outside the timegrid. If children keep pointer-events,
@@ -301,6 +307,7 @@
 
 .fc .fc-highlight {
   background: rgba(14, 107, 111, 0.38) !important;
+  pointer-events: none;
 }
 
 /* selectMirror ghost while dragging empty slots — keep it visible until mouseup */

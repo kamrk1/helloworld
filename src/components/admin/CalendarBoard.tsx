@@ -23,7 +23,7 @@ import { useToast } from "./Toast";
 import { AppointmentFormModal } from "./AppointmentFormModal";
 import { BlockFormModal } from "./BlockFormModal";
 import { EventDrawer } from "./EventDrawer";
-import { apiJson, reachabilityBanner, UNREACHABLE_BANNER } from "@/lib/api-client";
+import { apiJson, reachabilityBanner } from "@/lib/api-client";
 
 function toEvents(appointments: AppointmentDTO[], blocks: BlockDTO[]): EventInput[] {
   const appts: EventInput[] = appointments
@@ -163,9 +163,14 @@ export function CalendarBoard() {
     const start = fromCalendarMarker(info.start, info.startStr);
     const end = fromCalendarMarker(info.end, info.endStr);
     info.view.calendar.unselect();
-    if (!clinic.flags.closures) return;
-    // Click-drag always creates a clinic block, including a single slot.
-    // A click without drag is dateClick → new appointment.
+    if (end.getTime() - start.getTime() < 60_000) return;
+    if (!clinic.flags.closures) {
+      toast.push("Closures are not in this clinic package", "err");
+      return;
+    }
+    setCreateStart(null);
+    setSelectedAppt(null);
+    setSelectedBlock(null);
     setBlockRange({ start, end });
   }
 
@@ -262,11 +267,6 @@ export function CalendarBoard() {
       {banner === "offline" && (
         <div className="bg-amber-50 px-3 py-1.5 text-center text-[11px] font-medium text-amber-800 md:hidden">
           Offline — showing last saved week. Edits need a connection.
-        </div>
-      )}
-      {banner === "unreachable" && (
-        <div className="bg-amber-50 px-3 py-1.5 text-center text-[11px] font-medium text-amber-800 md:hidden">
-          {UNREACHABLE_BANNER}
         </div>
       )}
 

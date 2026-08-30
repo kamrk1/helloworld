@@ -60,7 +60,6 @@ export function reachabilityBanner(opts: {
 }): ReachabilityBanner {
   if (!opts.online) return "offline";
   if (opts.refreshing && opts.fromCache) return "updating";
-  if (opts.serverUnreachable) return "unreachable";
   return null;
 }
 

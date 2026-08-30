@@ -73,8 +73,8 @@ assert(
     serverUnreachable: true,
     fromCache: true,
     refreshing: false,
-  }) === "unreachable",
-  "failed snapshot while online is unreachable, not Offline",
+  }) === null,
+  "failed snapshot while online must not show Can't reach server banner",
 );
 assert(
   UNREACHABLE_BANNER.toLowerCase().includes("can't reach server"),
@@ -106,8 +106,8 @@ assert(
     serverUnreachable: true,
     fromCache: false,
     refreshing: false,
-  }) === "unreachable",
-  "unreachable banner does not require fromCache",
+  }) === null,
+  "5xx while online does not show the unreachable banner",
 );
 
 console.log("ok");
