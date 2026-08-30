@@ -180,9 +180,7 @@
 
 /* Clip events to their own day column so a tall Thursday appointment cannot
    steal clicks on Friday empty cells. Clip on the full-height column frame.
-   Do not stretch .fc-timegrid-col-events with bottom:0 — that overlay sits
-   on empty ivory slots and eats FullCalendar select / dateClick. Events are
-   absolutely positioned; let clicks pass through the events layer. */
+   Do not stretch .fc-timegrid-col-events with bottom:0. */
 .fc .fc-timegrid-col {
   position: relative;
   isolation: isolate;
