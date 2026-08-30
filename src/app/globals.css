@@ -197,32 +197,23 @@
   pointer-events: none;
 }
 
+/* Idle events must receive mousedown so grab-to-move and bottom-edge resize
+   start eventDrag / eventResize instead of date-select. Do not use a :not()
+   chain here — each :not() adds specificity and will beat the dragging-none
+   rules, leaving the drag clone (and resizer) under the cursor. */
 .fc .fc-timegrid-event-harness {
-  pointer-events: auto !important;
+  pointer-events: auto;
   z-index: 6;
-}
-
-.fc .fc-timegrid-event,
-.fc .fc-event:not(.fc-bg-event):not(.fc-event-mirror),
-.fc .fc-event-main,
-.fc .fc-event-resizer {
-  pointer-events: auto !important;
-  z-index: 6;
-}
-
-/* Drag/resize mirrors sit outside the timegrid. If children keep pointer-events,
-   FullCalendar's elementFromPoint check fails and every drop shows the red X. */
-.fc .fc-event-dragging,
-.fc .fc-event-dragging *,
-.fc .fc-event-mirror,
-.fc .fc-event-mirror * {
-  pointer-events: none !important;
-}
-
-.fc .fc-timegrid-event-harness {
   overflow-x: hidden;
   overflow-y: visible;
   max-width: 100%;
+}
+
+.fc .fc-timegrid-event,
+.fc .fc-event,
+.fc .fc-event-main {
+  pointer-events: auto;
+  z-index: 6;
 }
 
 .fc .fc-timegrid-event-harness,
@@ -268,9 +259,10 @@
   text-decoration: line-through;
 }
 
-/* Visible bottom-edge resize handle (GCal-style). */
+/* Visible bottom-edge resize handle (GCal-style). Idle only — dragging-none
+   below must stay more specific so stretch does not paint the red slash. */
 .fc .fc-event-resizable .fc-event-resizer {
-  pointer-events: auto !important;
+  pointer-events: auto;
   display: block !important;
   height: 12px !important;
   cursor: ns-resize;
@@ -322,6 +314,29 @@
   color: #0e6b6f !important;
   box-shadow: none !important;
   opacity: 1 !important;
+}
+
+/* LAST: while dragging or resizing, the source event, the clone FullCalendar
+   appends to .fc, and every descendant (main, resizer) must be transparent to
+   elementFromPoint. Otherwise the hit test misses the slat and shows the red X.
+   Specificity must beat the idle auto rules above. */
+.fc .fc-event.fc-event-dragging,
+.fc .fc-event.fc-event-dragging *,
+.fc .fc-timegrid-event.fc-event-dragging,
+.fc .fc-timegrid-event.fc-event-dragging *,
+.fc .fc-event-mirror,
+.fc .fc-event-mirror *,
+.fc .fc-event.fc-event-mirror,
+.fc .fc-event.fc-event-mirror *,
+.fc .fc-event-dragging .fc-event-main,
+.fc .fc-event-mirror .fc-event-main,
+.fc .fc-event-resizable.fc-event-dragging,
+.fc .fc-event-resizable.fc-event-dragging *,
+.fc .fc-event-resizable.fc-event-dragging .fc-event-resizer,
+.fc .fc-event-resizable.fc-event-mirror .fc-event-resizer,
+.fc .fc-event-dragging .fc-event-resizer,
+.fc .fc-event-mirror .fc-event-resizer,
+.fc .fc-event-resizer.fc-event-dragging {
   pointer-events: none !important;
 }
 
