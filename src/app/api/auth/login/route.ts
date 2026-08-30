@@ -1,14 +1,10 @@
 import { NextResponse } from "next/server";
 import { clinicPasswordDigest, checkClinicPassword, createClinicSessionToken, sessionCookie } from "@/lib/auth";
-import { prisma, runWithRequestPrisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { ensureKnownClinics } from "@/lib/tenant";
 import { defaultClinicId, isValidClinicSlug } from "@/lib/clinic-config";
 
 export async function POST(req: Request) {
-  return runWithRequestPrisma(() => login(req));
-}
-
-async function login(req: Request) {
   try {
     await ensureKnownClinics();
     const body = (await req.json()) as { password?: string; clinicId?: string };

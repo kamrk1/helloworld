@@ -1,5 +1,4 @@
 import { PrismaClient } from "@prisma/client";
-import { prismaAls, runWithRequestPrisma } from "./prisma-als";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 import { HOSTED } from "./hosted-values";
@@ -28,9 +27,8 @@ const globalForPrisma = globalThis as unknown as {
   prisma?: ClinicPrisma;
 };
 
-export { runWithRequestPrisma };
-
 function isCloudflareWorker() {
+  // OPEN_NEXT=1 is also set during the Node OpenNext build — do not use it here.
   return typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers";
 }
 
@@ -57,14 +55,13 @@ function createClient(): ClinicPrisma {
   });
 }
 
+/**
+ * workerd: new Pool per getPrisma() (one prisma.x access). Slow if many queries,
+ * but connects. Never isolate-lifetime Pool, enterWith, next/headers, or React cache.
+ * Node/SQLite: process singleton.
+ */
 export function getPrisma(): ClinicPrisma {
   if (isCloudflareWorker()) {
-    const bag = prismaAls.getStore();
-    if (bag) {
-      if (!bag.client) bag.client = createClient();
-      return bag.client as ClinicPrisma;
-    }
-    // No wrapper: new client for this access (slow, but never enterWith / isolate Pool).
     return createClient();
   }
   if (!globalForPrisma.prisma) {

@@ -1,4 +1,4 @@
-import { prisma, runWithRequestPrisma } from "./prisma";
+import { prisma } from "./prisma";
 import { clinicPasswordDigest } from "./auth";
 import { ensureOptionalPatientPhone } from "./ensure-schema";
 import {
@@ -137,11 +137,9 @@ export async function getClinicRuntime(id: string): Promise<ClinicRuntime | null
 }
 
 export async function requireEnabledClinic(id: string) {
-  return runWithRequestPrisma(async () => {
-    const runtime = await getClinicRuntime(id);
-    if (!runtime || !runtime.enabled) return null;
-    return runtime;
-  });
+  const runtime = await getClinicRuntime(id);
+  if (!runtime || !runtime.enabled) return null;
+  return runtime;
 }
 
 export function flagsOrDefault(flags?: FeatureFlags): FeatureFlags {

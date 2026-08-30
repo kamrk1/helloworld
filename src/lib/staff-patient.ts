@@ -1,5 +1,6 @@
 import { prisma } from "./prisma";
 import { isValidPhone, phoneToStore } from "./phone";
+import { ensureOptionalPatientPhone } from "./ensure-schema";
 
 /** Create or reuse a clinic patient for staff booking. Blank phone → new row with NULL (no upsert). */
 export async function createOrReuseStaffPatient(opts: {
@@ -9,6 +10,7 @@ export async function createOrReuseStaffPatient(opts: {
   email?: string | null;
   concerns?: string | null;
 }) {
+  await ensureOptionalPatientPhone();
   const name = opts.name.trim();
   const phone = phoneToStore(opts.phone);
   const email = opts.email ? opts.email : null;
