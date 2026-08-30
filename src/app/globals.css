@@ -3,27 +3,413 @@
 @tailwind utilities;
 
 @layer base {
+  html,
   body {
-    @apply bg-slate-100 text-slate-900;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    height: 100%;
+  }
+
+  :root {
+    --brand-primary: #0e6b6f;
+    --brand-accent: #c9a35b;
+  }
+
+  body {
+    @apply bg-ivory text-slate-900 antialiased;
+  }
+
+  @media (display-mode: standalone) {
+    body {
+      min-height: 100dvh;
+    }
+  }
+
+  ::selection {
+    background: #C9A35B33;
   }
 }
 
 @layer components {
-  .input {
-    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm
-      placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200;
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition
+      focus:outline-none focus-visible:ring-2 focus-visible:ring-teal focus-visible:ring-offset-2
+      disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .btn-primary {
-    @apply rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm
-      hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2
-      disabled:cursor-not-allowed disabled:opacity-50;
+    @apply btn bg-teal text-white shadow-sm hover:bg-teal-dark;
+  }
+
+  .btn-gold {
+    @apply btn bg-gold text-teal-dark hover:bg-gold-dark hover:text-white;
   }
 
   .btn-secondary {
-    @apply rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm
-      hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-2
-      disabled:cursor-not-allowed disabled:opacity-50;
+    @apply btn border border-slate-200 bg-white text-slate-700 hover:bg-slate-50;
+  }
+
+  .btn-danger {
+    @apply btn bg-red-600 text-white hover:bg-red-700;
+  }
+
+  .btn-ghost {
+    @apply btn text-slate-600 hover:bg-slate-100;
+  }
+
+  .input {
+    @apply w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm
+      placeholder:text-slate-400 focus:border-teal focus:outline-none focus:ring-2 focus:ring-teal/20;
+  }
+
+  .label {
+    @apply mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500;
+  }
+
+  .card {
+    @apply rounded-2xl border border-slate-100 bg-white shadow-card;
+  }
+
+  .badge {
+    @apply inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide;
+  }
+}
+
+/* FullCalendar — Google Calendar-like chrome */
+.fc {
+  --fc-border-color: #dadce0;
+  --fc-page-bg-color: #ffffff;
+  --fc-neutral-bg-color: #f8f9fa;
+  --fc-today-bg-color: #fffdf8;
+  --fc-now-indicator-color: var(--brand-primary, #0e6b6f);
+  --fc-highlight-color: color-mix(in srgb, var(--brand-primary, #0e6b6f) 38%, transparent);
+  --fc-event-border-color: transparent;
+  --fc-small-font-size: 0.75rem;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  height: 100%;
+}
+
+.fc .fc-view-harness {
+  background: #fff;
+}
+
+.fc .fc-scrollgrid {
+  border-radius: 12px;
+  border-color: #dadce0 !important;
+}
+
+.fc .fc-timegrid-slot {
+  height: 3rem;
+  border-bottom: 1px solid #eee !important;
+}
+
+.fc .fc-timegrid-slot-minor {
+  border-bottom: 1px solid #eee !important;
+}
+
+.fc .fc-timegrid-slot:not(.fc-timegrid-slot-minor) {
+  border-bottom: 1px solid #dadce0 !important;
+}
+
+.fc .fc-timegrid-col {
+  border-left: 1px solid #dadce0;
+}
+
+.fc .fc-timegrid-slots {
+  /* Slats are position:relative; z-index:1. Without this, they sit ON TOP of
+     .fc-timegrid-cols (z-index auto) and steal every mousedown. Date-select
+     then starts on the booking, selectOverlap paints the red slash, and
+     eventDrag never runs. Hits belong on the cols overlay: events to drag,
+     empty col-frame to Block / New appointment. */
+  pointer-events: none;
+}
+
+.fc .fc-timegrid-cols {
+  z-index: 3;
+}
+
+@media (max-width: 768px) {
+  .fc .fc-timegrid-slot {
+    height: 2.35rem;
+  }
+
+  .fc .fc-col-header-cell-cushion {
+    padding-top: 0.35rem;
+    padding-bottom: 0.35rem;
+    font-size: 11px;
+  }
+
+  .fc .fc-event {
+    font-size: 11px;
+  }
+}
+
+.fc .fc-timegrid-slot-label {
+  vertical-align: top;
+}
+
+.fc .fc-timegrid-slot-label-cushion {
+  @apply text-[11px] font-medium text-slate-400;
+}
+
+.fc .fc-col-header-cell-cushion {
+  @apply py-2 text-xs font-semibold uppercase tracking-wider text-slate-500;
+}
+
+.fc .fc-timegrid-col.fc-day-today {
+  background: #fffdf8 !important;
+}
+
+.fc .fc-timegrid-now-indicator-line {
+  border-width: 2px;
+}
+
+.fc .fc-timegrid-now-indicator-arrow {
+  border-color: #0e6b6f;
+  border-top-color: transparent;
+  border-bottom-color: transparent;
+}
+
+.fc-theme-standard td,
+.fc-theme-standard th {
+  border-color: #dadce0;
+}
+
+.fc .fc-col-header-cell {
+  border-left: 1px solid #dadce0;
+  background: #fff;
+}
+
+/* Clip events to their own day column so a tall Thursday appointment cannot
+   steal clicks on Friday empty cells. Clip on the full-height column frame.
+   Do not stretch .fc-timegrid-col-events with bottom:0. */
+.fc .fc-timegrid-col {
+  position: relative;
+  isolation: isolate;
+}
+
+.fc .fc-timegrid-col-frame {
+  overflow: hidden !important;
+}
+
+.fc .fc-timegrid-col-bg {
+  /* Fill the column so .fc-highlight paints during drag-select. Hits pass through. */
+  bottom: 0;
+  pointer-events: none;
+}
+
+/* Do not set pointer-events:none on .fc-timegrid-col-events: it is height 0
+   (no bottom:0) and Chrome then skips overflowing event descendants, so the
+   col-frame under the booking starts date-select. Leave events hittable. */
+.fc .fc-timegrid-col-misc,
+.fc .fc-timegrid-now-indicator-container {
+  pointer-events: none;
+}
+
+/* Idle events must receive mousedown so grab-to-move and bottom-edge resize
+   start eventDrag / eventResize instead of date-select. Do not use a :not()
+   chain here — each :not() adds specificity and will beat the dragging-none
+   rules, leaving the drag clone (and resizer) under the cursor. */
+.fc .fc-timegrid-event-harness {
+  pointer-events: auto;
+  z-index: 6;
+  overflow-x: hidden;
+  overflow-y: visible;
+  max-width: 100%;
+}
+
+.fc .fc-timegrid-event,
+.fc .fc-event,
+.fc .fc-event-main {
+  pointer-events: auto;
+  z-index: 6;
+}
+
+.fc .fc-timegrid-event-harness,
+.fc .fc-timegrid-event,
+.fc .fc-event {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.fc .fc-event {
+  --fc-event-resizer-thickness: 12px;
+  border: none !important;
+  border-radius: 4px !important;
+  box-shadow: inset 4px 0 0 currentColor, 0 1px 1px rgba(60, 64, 67, 0.12);
+  font-size: 12px;
+  padding: 1px 6px 10px 8px;
+  overflow: hidden;
+}
+
+.fc .fc-event-main {
+  color: inherit;
+}
+
+.fc .evt-pending {
+  background: #f8efe0 !important;
+  color: #8a6a2b !important;
+}
+
+.fc .evt-approved {
+  background: #e7f3f3 !important;
+  color: #0e6b6f !important;
+}
+
+.fc .evt-confirmed {
+  background: #d8ecec !important;
+  color: #0a5558 !important;
+}
+
+.fc .evt-rejected,
+.fc .evt-cancelled {
+  background: #f1f3f4 !important;
+  color: #5f6368 !important;
+  text-decoration: line-through;
+}
+
+/* Visible bottom-edge resize handle (GCal-style). Idle only — dragging-none
+   below must stay more specific so stretch does not paint the red slash. */
+.fc .fc-event-resizable .fc-event-resizer {
+  pointer-events: auto;
+  display: block !important;
+  height: 12px !important;
+  cursor: ns-resize;
+  z-index: 6;
+  touch-action: none;
+}
+
+.fc .fc-event-resizing,
+.fc .fc-event-dragging,
+.fc .fc-event-mirror {
+  touch-action: none;
+}
+
+.fc .fc-timegrid-event .fc-event-resizer-end,
+.fc .fc-event-resizer.fc-event-resizer-end {
+  bottom: 0 !important;
+  left: 0;
+  right: 0;
+  height: 12px !important;
+}
+
+.fc .fc-timegrid-event .fc-event-resizer-end::after {
+  content: "";
+  display: block;
+  width: 28px;
+  height: 4px;
+  margin: 4px auto 0;
+  border-radius: 2px;
+  background: rgba(32, 33, 36, 0.45);
+}
+
+.cal-interacting .fc-scroller {
+  touch-action: none;
+}
+
+.cal-interacting .fc-timegrid-col-frame,
+.cal-interacting .fc-event,
+.cal-interacting .fc-timegrid-event-harness {
+  overflow: visible !important;
+}
+
+@media (max-width: 768px), (pointer: coarse) {
+  .fc .fc-timegrid-col-frame {
+    overflow: visible !important;
+  }
+
+  .fc .fc-event {
+    --fc-event-resizer-thickness: 32px;
+    overflow: visible;
+    padding-bottom: 18px;
+  }
+
+  .fc .fc-timegrid-event-harness {
+    overflow: visible;
+  }
+
+  .fc .fc-event-resizable .fc-event-resizer {
+    height: 32px !important;
+  }
+
+  .fc .fc-timegrid-event .fc-event-resizer-end,
+  .fc .fc-event-resizer.fc-event-resizer-end {
+    height: 32px !important;
+    bottom: -10px !important;
+  }
+
+  .fc .fc-timegrid-event .fc-event-resizer-end::after {
+    width: 36px;
+    height: 5px;
+    margin: 12px auto 0;
+  }
+}
+
+.fc .evt-block {
+  background: #eef1f4 !important;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 7px,
+    rgba(100, 116, 139, 0.08) 7px,
+    rgba(100, 116, 139, 0.08) 8px
+  ) !important;
+  color: #334155 !important;
+  box-shadow: inset 3px 0 0 #94a3b8;
+  border-radius: 4px !important;
+}
+
+.fc .fc-highlight {
+  background: rgba(14, 107, 111, 0.38) !important;
+  pointer-events: none;
+}
+
+/* selectMirror ghost while dragging empty slots — keep it visible until mouseup */
+.fc .fc-event-mirror,
+.fc .fc-event.fc-event-mirror {
+  background: rgba(14, 107, 111, 0.28) !important;
+  border: 2px dashed #0e6b6f !important;
+  color: #0e6b6f !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+}
+
+/* LAST: while dragging or resizing, the source event, the clone FullCalendar
+   appends to .fc, and every descendant (main, resizer) must be transparent to
+   elementFromPoint. Otherwise the hit test misses the slat and shows the red X.
+   Specificity must beat the idle auto rules above. */
+.fc .fc-event.fc-event-dragging,
+.fc .fc-event.fc-event-dragging *,
+.fc .fc-timegrid-event.fc-event-dragging,
+.fc .fc-timegrid-event.fc-event-dragging *,
+.fc .fc-event-mirror,
+.fc .fc-event-mirror *,
+.fc .fc-event.fc-event-mirror,
+.fc .fc-event.fc-event-mirror *,
+.fc .fc-event-dragging .fc-event-main,
+.fc .fc-event-mirror .fc-event-main,
+.fc .fc-event-resizable.fc-event-dragging,
+.fc .fc-event-resizable.fc-event-dragging *,
+.fc .fc-event-resizable.fc-event-dragging .fc-event-resizer,
+.fc .fc-event-resizable.fc-event-mirror .fc-event-resizer,
+.fc .fc-event-dragging .fc-event-resizer,
+.fc .fc-event-mirror .fc-event-resizer,
+.fc .fc-event-resizer.fc-event-dragging {
+  pointer-events: none !important;
+}
+
+.fc .fc-non-business {
+  background: #f1f3f4 !important;
+}
+
+.fc .fc-bg-event {
+  opacity: 1;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
   }
 }

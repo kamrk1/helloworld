@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Safe zone is the inner 72dp. Logo viewBox is 64; scale 72/64 and offset 18. -->
+    <group
+        android:translateX="18"
+        android:translateY="18"
+        android:scaleX="1.125"
+        android:scaleY="1.125">
+        <path
+            android:fillColor="#F7F5F2"
+            android:pathData="M32,14C25,22 21,28 21,35A11,11 0 1,0 43,35C43,28 39,22 32,14Z" />
+        <path
+            android:fillColor="#C9A35B"
+            android:pathData="M32,22C28,27 26,31 26,35A6,6 0 1,0 38,35C38,31 36,27 32,22Z" />
+    </group>
+</vector>

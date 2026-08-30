@@ -1,0 +1,123 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+  output          = "../../src/generated/cloud"
+  binaryTargets   = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Clinic {
+  id              String         @id
+  name            String
+  shortName       String         @default("")
+  tagline         String         @default("")
+  passwordDigest  String         @default("")
+  timezone        String         @default("Asia/Kolkata")
+  hoursOpen       String         @default("10:00")
+  hoursClose      String         @default("20:00")
+  hoursJson       String         @default("[]")
+  closedWeekdays  String         @default("[0]")
+  slotMinutes     Int            @default(30)
+  defaultDuration Int            @default(30)
+  durationsJson   String         @default("[30,60,90]")
+  servicesJson    String
+  phone           String         @default("")
+  address         String         @default("")
+  reviewUrl       String         @default("")
+  brandPrimary    String         @default("#0E6B6F")
+  brandAccent     String         @default("#C9A35B")
+  logoBytes       Bytes?
+  logoMime        String?
+  rxJson          String         @default("{}")
+  flagsJson       String         @default("{}")
+  enabled         Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  patients        Patient[]
+  appointments    Appointment[]
+  blocks          ClinicBlock[]
+  prescriptions   Prescription[]
+}
+
+model Patient {
+  id            String        @id @default(cuid())
+  clinicId      String
+  clinic        Clinic        @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  phone         String?
+  name          String
+  email         String?
+  firstVisit    DateTime?
+  lastVisit     DateTime?
+  totalBookings Int           @default(0)
+  concerns      String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  appointments  Appointment[]
+
+  @@unique([clinicId, phone])
+  @@index([clinicId])
+}
+
+model Appointment {
+  id               String            @id @default(cuid())
+  clinicId         String
+  clinic           Clinic            @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  ref              String
+  patientId        String
+  patient          Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  service          String
+  startAt          DateTime
+  endAt            DateTime
+  durationMin      Int               @default(30)
+  notes            String?
+  status           String            @default("PENDING")
+  googleCalEventId String?
+  rxLink           String?
+  followupDate     DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  prescription     Prescription?
+
+  @@unique([clinicId, ref])
+  @@index([clinicId, startAt])
+  @@index([startAt])
+  @@index([endAt])
+  @@index([status])
+  @@index([followupDate])
+}
+
+model Prescription {
+  id            String      @id @default(cuid())
+  clinicId      String
+  clinic        Clinic      @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  appointmentId String      @unique
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  complaints    String
+  findings      String
+  diagnosis     String
+  medicines     String
+  advice        String
+  followupNote  String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([clinicId])
+}
+
+model ClinicBlock {
+  id        String   @id @default(cuid())
+  clinicId  String
+  clinic    Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  startAt   DateTime
+  endAt     DateTime
+  allDay    Boolean  @default(false)
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@index([clinicId, startAt, endAt])
+  @@index([startAt, endAt])
+}

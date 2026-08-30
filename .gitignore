@@ -26,12 +26,23 @@ yarn-debug.log*
 yarn-error.log*
 
 # local env files
-.env
+.env.local
 .env*.local
+hosted.json
 
 # database
 *.db
 *.db-journal
+/backups
+
+# generated prisma (cloud client)
+/src/generated/cloud
+
+# cloudflare / opennext
+.open-next
+.dev.vars
+.wrangler
+prisma/cloud/schema.workers.prisma
 
 # vercel
 .vercel
@@ -41,3 +52,17 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# Capacitor / Android build outputs (commit the android/ project source)
+*.apk
+*.aab
+*.ap_
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+android/captures/
+android/.idea/
+android/*.iml
+android/.externalNativeBuild/
+android/capacitor-cordova-android-plugins/build/
