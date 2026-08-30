@@ -28,13 +28,9 @@ const globalForPrisma = globalThis as unknown as {
   prisma?: ClinicPrisma;
 };
 
-const requestClients = new Map<string, ClinicPrisma>();
-
-function isWorkerdRuntime() {
-  return (
-    (typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers") ||
-    process.env["OPEN_NEXT"] === "1"
-  );
+function isCloudflareWorker() {
+  // Do not use OPEN_NEXT=1 — that is also set during the Node OpenNext build.
+  return typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers";
 }
 
 function createPgAdapterClient(url: string): ClinicPrisma {
@@ -60,37 +56,15 @@ function createClient(): ClinicPrisma {
   });
 }
 
-function requestKey(): string | null {
-  try {
-    // Lazy require so seed/import scripts do not load next/headers.
-    const { headers } = require("next/headers") as typeof import("next/headers");
-    const h = headers();
-    return h.get("cf-ray") || h.get("x-request-id");
-  } catch {
-    return null;
-  }
-}
-
-function clientForRequestKey(key: string): ClinicPrisma {
-  const existing = requestClients.get(key);
-  if (existing) return existing;
-  const client = createClient();
-  requestClients.set(key, client);
-  if (requestClients.size > 16) {
-    const oldest = requestClients.keys().next().value;
-    if (oldest && oldest !== key) requestClients.delete(oldest);
-  }
-  return client;
-}
-
-/** React cache() is per-request when it works; never a process-lifetime Pool on workerd. */
+/**
+ * One Pool per incoming Worker request (React cache), shared across prisma.x.
+ * Never isolate-lifetime on workerd (TCP/TLS dies; max:1 then times out).
+ * Never ALS.enterWith (not implemented on workerd).
+ */
 const getPrismaForRequest = typeof cache === "function" ? cache(createClient) : createClient;
 
 export function getPrisma(): ClinicPrisma {
-  const url = databaseUrl();
-  if (isPostgresUrl(url) && isWorkerdRuntime()) {
-    const key = requestKey();
-    if (key) return clientForRequestKey(key);
+  if (isCloudflareWorker()) {
     return getPrismaForRequest();
   }
   if (!globalForPrisma.prisma) {
