@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireClinic } from "@/lib/require-admin";
+import { requireClinic, requireClinicSession } from "@/lib/require-admin";
 import { appointmentCreateSchema, humanZodMessage } from "@/lib/validation";
 import { createOrReuseStaffPatient } from "@/lib/staff-patient";
+import { bookNameOnlyWalkIn } from "@/lib/staff-book";
 import { addMinutes } from "@/lib/datetime";
 import { assertBookable } from "@/lib/slots";
 import {
@@ -32,10 +33,11 @@ export async function GET() {
 export async function POST(req: Request) {
   const t0 = Date.now();
   const marks: Record<string, number> = {};
-  const auth = await requireClinic();
+  const sessionAuth = await requireClinicSession();
   marks.auth = Date.now() - t0;
-  if (auth.error) return auth.error;
-  const clinic = auth.clinic;
+  if (sessionAuth.error) return sessionAuth.error;
+  const clinicId = sessionAuth.session.clinicId;
+
   try {
     const json = await req.json();
     const parsed = appointmentCreateSchema.safeParse(json);
@@ -47,8 +49,44 @@ export async function POST(req: Request) {
     if (Number.isNaN(startAt.getTime())) {
       return NextResponse.json({ error: "Invalid start time" }, { status: 400 });
     }
-    const durationMin = data.durationMin ?? clinic.defaultDuration;
+    if (!data.durationMin) {
+      return NextResponse.json({ error: "Choose a duration between 5 and 480 minutes." }, { status: 400 });
+    }
+    const durationMin = data.durationMin;
     const endAt = addMinutes(startAt, durationMin);
+
+    if (!data.patientId && data.name) {
+      let t = Date.now();
+      const fast = await bookNameOnlyWalkIn({
+        clinicId,
+        name: data.name,
+        phone: data.phone,
+        email: data.email,
+        service: data.service,
+        startAt,
+        endAt,
+        durationMin,
+        notes: data.notes ?? null,
+        status: data.status ?? "APPROVED",
+      });
+      marks.book = Date.now() - t;
+      marks.total = Date.now() - t0;
+      if ("error" in fast) {
+        if (fast.status !== 0) {
+          const res = NextResponse.json({ error: fast.error }, { status: fast.status });
+          res.headers.set("Server-Timing", timingHeader(marks));
+          return res;
+        }
+      } else {
+        const res = NextResponse.json(fast.appointment);
+        res.headers.set("Server-Timing", timingHeader(marks));
+        return res;
+      }
+    }
+
+    const full = await requireClinic();
+    if (full.error) return full.error;
+    const clinic = full.clinic;
 
     let t = Date.now();
     const conflict = await assertBookable({ clinic, startAt, endAt, allowOutsideHours: true });

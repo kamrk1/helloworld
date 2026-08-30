@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { headers } from "next/headers";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
@@ -62,10 +63,29 @@ function createClient(): ClinicPrisma {
  * Never ALS.enterWith (not implemented on workerd).
  */
 const getPrismaForRequest = typeof cache === "function" ? cache(createClient) : createClient;
+const requestClients = new Map<string, ClinicPrisma>();
+
+function clientForCfRay(): ClinicPrisma | null {
+  try {
+    const key = headers().get("cf-ray") || headers().get("x-request-id");
+    if (!key) return null;
+    const existing = requestClients.get(key);
+    if (existing) return existing;
+    const client = createClient();
+    requestClients.set(key, client);
+    if (requestClients.size > 16) {
+      const oldest = requestClients.keys().next().value;
+      if (oldest && oldest !== key) requestClients.delete(oldest);
+    }
+    return client;
+  } catch {
+    return null;
+  }
+}
 
 export function getPrisma(): ClinicPrisma {
   if (isCloudflareWorker()) {
-    return getPrismaForRequest();
+    return clientForCfRay() ?? getPrismaForRequest();
   }
   if (!globalForPrisma.prisma) {
     globalForPrisma.prisma = createClient();
