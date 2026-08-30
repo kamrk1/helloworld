@@ -1,6 +1,5 @@
-import { cache } from "react";
-import { headers } from "next/headers";
 import { PrismaClient } from "@prisma/client";
+import { prismaAls, runWithRequestPrisma } from "./prisma-als";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 import { HOSTED } from "./hosted-values";
@@ -29,8 +28,9 @@ const globalForPrisma = globalThis as unknown as {
   prisma?: ClinicPrisma;
 };
 
+export { runWithRequestPrisma };
+
 function isCloudflareWorker() {
-  // Do not use OPEN_NEXT=1 — that is also set during the Node OpenNext build.
   return typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers";
 }
 
@@ -57,35 +57,15 @@ function createClient(): ClinicPrisma {
   });
 }
 
-/**
- * One Pool per incoming Worker request (React cache), shared across prisma.x.
- * Never isolate-lifetime on workerd (TCP/TLS dies; max:1 then times out).
- * Never ALS.enterWith (not implemented on workerd).
- */
-const getPrismaForRequest = typeof cache === "function" ? cache(createClient) : createClient;
-const requestClients = new Map<string, ClinicPrisma>();
-
-function clientForCfRay(): ClinicPrisma | null {
-  try {
-    const key = headers().get("cf-ray") || headers().get("x-request-id");
-    if (!key) return null;
-    const existing = requestClients.get(key);
-    if (existing) return existing;
-    const client = createClient();
-    requestClients.set(key, client);
-    if (requestClients.size > 16) {
-      const oldest = requestClients.keys().next().value;
-      if (oldest && oldest !== key) requestClients.delete(oldest);
-    }
-    return client;
-  } catch {
-    return null;
-  }
-}
-
 export function getPrisma(): ClinicPrisma {
   if (isCloudflareWorker()) {
-    return clientForCfRay() ?? getPrismaForRequest();
+    const bag = prismaAls.getStore();
+    if (bag) {
+      if (!bag.client) bag.client = createClient();
+      return bag.client as ClinicPrisma;
+    }
+    // No wrapper: new client for this access (slow, but never enterWith / isolate Pool).
+    return createClient();
   }
   if (!globalForPrisma.prisma) {
     globalForPrisma.prisma = createClient();
