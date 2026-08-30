@@ -33,6 +33,7 @@ const globalForPrisma = globalThis as unknown as {
  * not enterWith (that 500'd the live Worker).
  */
 const prismaAls = new AsyncLocalStorage<ClinicPrisma>();
+const requestPools = new WeakMap<ClinicPrisma, Pool>();
 
 function isCloudflareWorker() {
   return typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers";
@@ -47,7 +48,9 @@ function createPgAdapterClient(url: string): ClinicPrisma {
     allowExitOnIdle: true,
   });
   const adapter = new PrismaPg(pool);
-  return new PrismaClient({ adapter, log } as ConstructorParameters<typeof PrismaClient>[0]);
+  const client = new PrismaClient({ adapter, log } as ConstructorParameters<typeof PrismaClient>[0]);
+  requestPools.set(client, pool);
+  return client;
 }
 
 function createClient(): ClinicPrisma {
@@ -61,11 +64,50 @@ function createClient(): ClinicPrisma {
   });
 }
 
-/** One Pool for this callback (and every prisma.x inside it). Never enterWith. */
+function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
+  return typeof value === "object" && value !== null && "then" in value && typeof (value as PromiseLike<unknown>).then === "function";
+}
+
+function releaseRequestClient(client: ClinicPrisma) {
+  const pool = requestPools.get(client);
+  requestPools.delete(client);
+  return Promise.all([
+    pool ? pool.end().catch(() => undefined) : Promise.resolve(),
+    client.$disconnect().catch(() => undefined),
+  ]);
+}
+
+function cloudflareWaitUntil(pending: Promise<unknown>) {
+  const cf = (globalThis as unknown as Record<symbol, { ctx?: { waitUntil?: (p: Promise<unknown>) => void } }>)[
+    Symbol.for("__cloudflare-context__")
+  ];
+  cf?.ctx?.waitUntil?.(pending);
+}
+
+/** One Pool for this callback (and every prisma.x inside it). Never enterWith.
+ *  Close the Pool after the handler settles so the next request can connect (Prisma Postgres connection cap). */
 export function runWithRequestPrisma<T>(fn: () => T): T {
   if (prismaAls.getStore()) return fn();
   if (isCloudflareWorker()) {
-    return prismaAls.run(createClient(), fn);
+    const client = createClient();
+    let settle!: () => void;
+    const finished = new Promise<void>((resolve) => {
+      settle = resolve;
+    });
+    cloudflareWaitUntil(finished.then(() => releaseRequestClient(client)));
+    try {
+      const result = prismaAls.run(client, fn);
+      if (isPromiseLike(result)) {
+        const done = Promise.resolve(result);
+        void done.then(settle, settle);
+        return done as T;
+      }
+      settle();
+      return result;
+    } catch (err) {
+      settle();
+      throw err;
+    }
   }
   return fn();
 }
