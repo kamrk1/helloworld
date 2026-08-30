@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
@@ -27,8 +28,13 @@ const globalForPrisma = globalThis as unknown as {
   prisma?: ClinicPrisma;
 };
 
+/**
+ * Request scope. workerd implements AsyncLocalStorage.run / getStore,
+ * not enterWith (that 500'd the live Worker).
+ */
+const prismaAls = new AsyncLocalStorage<ClinicPrisma>();
+
 function isCloudflareWorker() {
-  // OPEN_NEXT=1 is also set during the Node OpenNext build — do not use it here.
   return typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers";
 }
 
@@ -55,12 +61,22 @@ function createClient(): ClinicPrisma {
   });
 }
 
-/**
- * workerd: new Pool per getPrisma() (one prisma.x access). Slow if many queries,
- * but connects. Never isolate-lifetime Pool, enterWith, next/headers, or React cache.
- * Node/SQLite: process singleton.
- */
+/** One Pool for this callback (and every prisma.x inside it). Never enterWith. */
+export function runWithRequestPrisma<T>(fn: () => T): T {
+  if (prismaAls.getStore()) return fn();
+  if (isCloudflareWorker()) {
+    return prismaAls.run(createClient(), fn);
+  }
+  return fn();
+}
+
+export function withPrismaRoute<A extends unknown[], R>(handler: (...args: A) => R): (...args: A) => R {
+  return (...args: A) => runWithRequestPrisma(() => handler(...args));
+}
+
 export function getPrisma(): ClinicPrisma {
+  const scoped = prismaAls.getStore();
+  if (scoped) return scoped;
   if (isCloudflareWorker()) {
     return createClient();
   }

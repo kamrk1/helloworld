@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { clinicIdFromRequest, publicClinicOrError, slotsJson } from "@/lib/public-booking";
+import { withPrismaRoute } from "@/lib/prisma";
 
 /** Compatibility shim: defaults to DEFAULT_CLINIC_ID so old /api/slots bookmarks keep working. */
-export async function GET(req: Request) {
+export const GET = withPrismaRoute(async function GET(req: Request) {
   const found = await publicClinicOrError(clinicIdFromRequest(req), { requireBooking: true });
   if (found.error) return found.error;
   const url = new URL(req.url);
@@ -12,4 +13,4 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Query date=YYYY-MM-DD is required" }, { status: 400 });
   }
   return NextResponse.json(await slotsJson(found.clinic, date, duration));
-}
+});

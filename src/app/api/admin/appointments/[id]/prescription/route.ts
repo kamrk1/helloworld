@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma, withPrismaRoute } from "@/lib/prisma";
 import { requireClinic } from "@/lib/require-admin";
 import { prescriptionSchema } from "@/lib/validation";
 import { appointmentInclude, toAppointmentDTO, toPrescriptionDTO } from "@/lib/serializers";
@@ -7,7 +7,7 @@ import { adminBase } from "@/lib/clinic-config";
 
 type Ctx = { params: { id: string } };
 
-export async function GET(_req: Request, { params }: Ctx) {
+export const GET = withPrismaRoute(async function GET(_req: Request, { params }: Ctx) {
   const auth = await requireClinic("prescriptions");
   if (auth.error) return auth.error;
   const appt = await prisma.appointment.findFirst({
@@ -18,9 +18,9 @@ export async function GET(_req: Request, { params }: Ctx) {
   const rx = await prisma.prescription.findUnique({ where: { appointmentId: params.id } });
   if (!rx) return NextResponse.json({ error: "No prescription yet" }, { status: 404 });
   return NextResponse.json(toPrescriptionDTO(rx));
-}
+});
 
-export async function POST(req: Request, { params }: Ctx) {
+export const POST = withPrismaRoute(async function POST(req: Request, { params }: Ctx) {
   const auth = await requireClinic("prescriptions");
   if (auth.error) return auth.error;
   const appt = await prisma.appointment.findFirst({ where: { id: params.id, clinicId: auth.clinic.id } });
@@ -79,4 +79,4 @@ export async function POST(req: Request, { params }: Ctx) {
     const message = err instanceof Error ? err.message : "Save failed";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

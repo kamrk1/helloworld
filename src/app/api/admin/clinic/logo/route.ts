@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma, withPrismaRoute } from "@/lib/prisma";
 import { requireClinic } from "@/lib/require-admin";
 import { toAdminClinic, toClinicRuntime } from "@/lib/clinic-runtime";
 import { getClinicRow } from "@/lib/tenant";
@@ -7,7 +7,7 @@ import { getClinicRow } from "@/lib/tenant";
 const ALLOWED = new Set(["image/png", "image/jpeg", "image/webp", "image/svg+xml"]);
 const MAX_BYTES = 400 * 1024;
 
-export async function POST(req: Request) {
+export const POST = withPrismaRoute(async function POST(req: Request) {
   const auth = await requireClinic();
   if (auth.error) return auth.error;
   try {
@@ -35,9 +35,9 @@ export async function POST(req: Request) {
     const message = err instanceof Error ? err.message : "Upload failed";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});
 
-export async function DELETE() {
+export const DELETE = withPrismaRoute(async function DELETE() {
   const auth = await requireClinic();
   if (auth.error) return auth.error;
   await prisma.clinic.update({
@@ -47,4 +47,4 @@ export async function DELETE() {
   const row = await getClinicRow(auth.clinic.id);
   if (!row) return NextResponse.json({ error: "Clinic missing" }, { status: 404 });
   return NextResponse.json(toAdminClinic(toClinicRuntime(row)));
-}
+});

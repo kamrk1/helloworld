@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { createPublicBooking, publicClinicOrError } from "@/lib/public-booking";
+import { withPrismaRoute } from "@/lib/prisma";
 
 type Ctx = { params: { clinicId: string } };
 
-export async function POST(req: Request, { params }: Ctx) {
+export const POST = withPrismaRoute(async function POST(req: Request, { params }: Ctx) {
   const found = await publicClinicOrError(params.clinicId, { requireBooking: true });
   if (found.error) return found.error;
   try {
@@ -13,4 +14,4 @@ export async function POST(req: Request, { params }: Ctx) {
     const message = err instanceof Error ? err.message : "Booking failed";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { clinicIdFromRequest, createPublicBooking, publicClinicOrError } from "@/lib/public-booking";
+import { withPrismaRoute } from "@/lib/prisma";
 
 /** Compatibility shim for the first customer (DEFAULT_CLINIC_ID). New tenants should POST /api/c/{slug}/book. */
-export async function POST(req: Request) {
+export const POST = withPrismaRoute(async function POST(req: Request) {
   try {
     const json = (await req.json()) as { clinicId?: string };
     const clinicId = typeof json.clinicId === "string" ? json.clinicId : clinicIdFromRequest(req);
@@ -13,4 +14,4 @@ export async function POST(req: Request) {
     const message = err instanceof Error ? err.message : "Booking failed";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

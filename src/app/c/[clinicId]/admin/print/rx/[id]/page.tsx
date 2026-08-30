@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
+import { prisma, runWithRequestPrisma } from "@/lib/prisma";
 import { displayPhone } from "@/lib/phone";
 import { formatDateLong, formatTime } from "@/lib/datetime";
 import { PrintTrigger } from "./PrintTrigger";
@@ -16,6 +16,7 @@ export default async function PrintRxPage({
   params: { clinicId: string; id: string };
   searchParams: { print?: string };
 }) {
+  return runWithRequestPrisma(async () => {
   const clinicId = params.clinicId.toLowerCase();
   const session = await getSession();
   if (!session || session.role !== "clinic" || session.clinicId !== clinicId) {
@@ -111,6 +112,7 @@ export default async function PrintRxPage({
       </div>
     </div>
   );
+  });
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {

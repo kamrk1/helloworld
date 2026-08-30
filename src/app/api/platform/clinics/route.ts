@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma, withPrismaRoute } from "@/lib/prisma";
 import { requirePlatform } from "@/lib/require-admin";
 import { platformCreateClinicSchema } from "@/lib/validation";
 import { clinicPasswordDigest } from "@/lib/auth";
@@ -30,15 +30,15 @@ function platformClinicJson(row: Awaited<ReturnType<typeof prisma.clinic.findMan
   };
 }
 
-export async function GET() {
+export const GET = withPrismaRoute(async function GET() {
   const auth = await requirePlatform();
   if (auth.error) return auth.error;
   await ensureKnownClinics();
   const rows = await prisma.clinic.findMany({ orderBy: { createdAt: "asc" } });
   return NextResponse.json(rows.map(platformClinicJson));
-}
+});
 
-export async function POST(req: Request) {
+export const POST = withPrismaRoute(async function POST(req: Request) {
   const auth = await requirePlatform();
   if (auth.error) return auth.error;
   try {
@@ -85,4 +85,4 @@ export async function POST(req: Request) {
     const message = err instanceof Error ? err.message : "Create failed";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

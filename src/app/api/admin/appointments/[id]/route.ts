@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma, withPrismaRoute } from "@/lib/prisma";
 import { requireClinic } from "@/lib/require-admin";
 import { appointmentPatchSchema, humanZodMessage } from "@/lib/validation";
 import { addMinutes } from "@/lib/datetime";
@@ -9,7 +9,7 @@ import { normalizePhone, isValidPhone } from "@/lib/phone";
 
 type Ctx = { params: { id: string } };
 
-export async function GET(_req: Request, { params }: Ctx) {
+export const GET = withPrismaRoute(async function GET(_req: Request, { params }: Ctx) {
   const auth = await requireClinic();
   if (auth.error) return auth.error;
   const row = await prisma.appointment.findFirst({
@@ -18,9 +18,9 @@ export async function GET(_req: Request, { params }: Ctx) {
   });
   if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json(toAppointmentDTO(row));
-}
+});
 
-export async function PATCH(req: Request, { params }: Ctx) {
+export const PATCH = withPrismaRoute(async function PATCH(req: Request, { params }: Ctx) {
   const auth = await requireClinic();
   if (auth.error) return auth.error;
   const clinic = auth.clinic;
@@ -102,9 +102,9 @@ export async function PATCH(req: Request, { params }: Ctx) {
     const message = err instanceof Error ? err.message : "Update failed";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});
 
-export async function DELETE(_req: Request, { params }: Ctx) {
+export const DELETE = withPrismaRoute(async function DELETE(_req: Request, { params }: Ctx) {
   const auth = await requireClinic();
   if (auth.error) return auth.error;
   const existing = await prisma.appointment.findFirst({
@@ -114,4 +114,4 @@ export async function DELETE(_req: Request, { params }: Ctx) {
   await prisma.appointment.delete({ where: { id: params.id } });
   await refreshPatientStats(existing.patientId);
   return NextResponse.json({ ok: true });
-}
+});

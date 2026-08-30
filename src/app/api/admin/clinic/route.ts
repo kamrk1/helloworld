@@ -1,17 +1,17 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma, withPrismaRoute } from "@/lib/prisma";
 import { requireClinic } from "@/lib/require-admin";
 import { clinicSettingsSchema } from "@/lib/validation";
 import { toAdminClinic, toClinicRuntime } from "@/lib/clinic-runtime";
 import { getClinicRow } from "@/lib/tenant";
 
-export async function GET() {
+export const GET = withPrismaRoute(async function GET() {
   const auth = await requireClinic();
   if (auth.error) return auth.error;
   return NextResponse.json(toAdminClinic(auth.clinic));
-}
+});
 
-export async function PATCH(req: Request) {
+export const PATCH = withPrismaRoute(async function PATCH(req: Request) {
   const auth = await requireClinic();
   if (auth.error) return auth.error;
   try {
@@ -53,4 +53,4 @@ export async function PATCH(req: Request) {
     const message = err instanceof Error ? err.message : "Save failed";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

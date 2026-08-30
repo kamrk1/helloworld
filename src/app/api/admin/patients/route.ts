@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma, withPrismaRoute } from "@/lib/prisma";
 import { requireClinic } from "@/lib/require-admin";
 import { humanZodMessage, patientCreateSchema } from "@/lib/validation";
 import { createOrReuseStaffPatient } from "@/lib/staff-patient";
 import { toPatientDTO } from "@/lib/serializers";
 
-export async function GET() {
+export const GET = withPrismaRoute(async function GET() {
   const auth = await requireClinic();
   if (auth.error) return auth.error;
   const rows = await prisma.patient.findMany({
@@ -13,9 +13,9 @@ export async function GET() {
     orderBy: { name: "asc" },
   });
   return NextResponse.json(rows.map(toPatientDTO));
-}
+});
 
-export async function POST(req: Request) {
+export const POST = withPrismaRoute(async function POST(req: Request) {
   const auth = await requireClinic();
   if (auth.error) return auth.error;
   try {
@@ -39,4 +39,4 @@ export async function POST(req: Request) {
     const message = err instanceof Error ? err.message : "Create failed";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { clinicPasswordDigest, checkClinicPassword, createClinicSessionToken, sessionCookie } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { prisma, withPrismaRoute } from "@/lib/prisma";
 import { ensureKnownClinics } from "@/lib/tenant";
 import { defaultClinicId, isValidClinicSlug } from "@/lib/clinic-config";
 
-export async function POST(req: Request) {
+export const POST = withPrismaRoute(async function POST(req: Request) {
   try {
     await ensureKnownClinics();
     const body = (await req.json()) as { password?: string; clinicId?: string };
@@ -33,4 +33,4 @@ export async function POST(req: Request) {
     const message = err instanceof Error ? err.message : "Login failed";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

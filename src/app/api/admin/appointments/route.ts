@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma, withPrismaRoute } from "@/lib/prisma";
 import { requireClinic } from "@/lib/require-admin";
 import { appointmentCreateSchema, humanZodMessage } from "@/lib/validation";
 import { createOrReuseStaffPatient } from "@/lib/staff-patient";
@@ -18,7 +18,7 @@ function timingHeader(parts: Record<string, number>) {
     .join(", ");
 }
 
-export async function GET() {
+export const GET = withPrismaRoute(async function GET() {
   const auth = await requireClinic();
   if (auth.error) return auth.error;
   const rows = await prisma.appointment.findMany({
@@ -27,9 +27,9 @@ export async function GET() {
     orderBy: { startAt: "asc" },
   });
   return NextResponse.json(rows.map((r) => toAppointmentDTO(r)));
-}
+});
 
-export async function POST(req: Request) {
+export const POST = withPrismaRoute(async function POST(req: Request) {
   const t0 = Date.now();
   const marks: Record<string, number> = {};
   const auth = await requireClinic();
@@ -111,4 +111,4 @@ export async function POST(req: Request) {
     res.headers.set("Server-Timing", timingHeader(marks));
     return res;
   }
-}
+});

@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { publicClinicOrError, slotsJson } from "@/lib/public-booking";
+import { withPrismaRoute } from "@/lib/prisma";
 
 type Ctx = { params: { clinicId: string } };
 
-export async function GET(req: Request, { params }: Ctx) {
+export const GET = withPrismaRoute(async function GET(req: Request, { params }: Ctx) {
   const found = await publicClinicOrError(params.clinicId, { requireBooking: true });
   if (found.error) return found.error;
   const url = new URL(req.url);
@@ -13,4 +14,4 @@ export async function GET(req: Request, { params }: Ctx) {
     return NextResponse.json({ error: "Query date=YYYY-MM-DD is required" }, { status: 400 });
   }
   return NextResponse.json(await slotsJson(found.clinic, date, duration));
-}
+});

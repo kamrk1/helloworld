@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma, withPrismaRoute } from "@/lib/prisma";
 import { isValidClinicSlug } from "@/lib/clinic-config";
 
 type Ctx = { params: { clinicId: string } };
 
-export async function GET(_req: Request, { params }: Ctx) {
+export const GET = withPrismaRoute(async function GET(_req: Request, { params }: Ctx) {
   const id = params.clinicId.trim().toLowerCase();
   if (!isValidClinicSlug(id)) {
     return new NextResponse(null, { status: 404 });
@@ -24,4 +24,4 @@ export async function GET(_req: Request, { params }: Ctx) {
       "Cache-Control": "public, max-age=300",
     },
   });
-}
+});

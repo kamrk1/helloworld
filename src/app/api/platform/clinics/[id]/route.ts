@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma, withPrismaRoute } from "@/lib/prisma";
 import { requirePlatform } from "@/lib/require-admin";
 import { platformPatchClinicSchema } from "@/lib/validation";
 import { clinicPasswordDigest } from "@/lib/auth";
@@ -26,15 +26,15 @@ function platformClinicJson(row: NonNullable<Awaited<ReturnType<typeof prisma.cl
   };
 }
 
-export async function GET(_req: Request, { params }: Ctx) {
+export const GET = withPrismaRoute(async function GET(_req: Request, { params }: Ctx) {
   const auth = await requirePlatform();
   if (auth.error) return auth.error;
   const row = await prisma.clinic.findUnique({ where: { id: params.id } });
   if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json(platformClinicJson(row));
-}
+});
 
-export async function PATCH(req: Request, { params }: Ctx) {
+export const PATCH = withPrismaRoute(async function PATCH(req: Request, { params }: Ctx) {
   const auth = await requirePlatform();
   if (auth.error) return auth.error;
   const existing = await prisma.clinic.findUnique({ where: { id: params.id } });
@@ -61,4 +61,4 @@ export async function PATCH(req: Request, { params }: Ctx) {
     const message = err instanceof Error ? err.message : "Update failed";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});
