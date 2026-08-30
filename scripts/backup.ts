@@ -22,6 +22,7 @@ async function main() {
         enabled: true,
         hoursOpen: true,
         hoursClose: true,
+        hoursJson: true,
         flagsJson: true,
       },
     }),

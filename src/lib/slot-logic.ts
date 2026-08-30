@@ -1,6 +1,14 @@
 import { DEFAULT_CLINIC } from "./clinic-config";
-import { toISODateIST, weekdayIST } from "./datetime";
+import { toISODateIST, weekdayIST, istDateTimeFromIsoDate } from "./datetime";
 import type { ClinicRuntime } from "./clinic-config";
+import {
+  generateStartsInWindows,
+  hoursFromRuntime,
+  hoursWindowsLabel,
+  windowContainingStart,
+  type ClinicHours,
+} from "./clinic-hours";
+import { closedDaysLabel } from "./hours-label";
 
 export type SlotReason = "past" | "booked" | "blocked" | "too_late";
 
@@ -30,6 +38,17 @@ export function overlaps(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date) {
   return aStart < bEnd && aEnd > bStart;
 }
 
+/** True when [start, end) sits entirely inside one open window (cannot span a lunch gap). */
+export function rangeFitsHours(start: Date, end: Date, hours: ClinicHours | ClinicRuntime["hours"]) {
+  const date = toISODateIST(start);
+  const resolved = hoursFromRuntime(hours);
+  return resolved.windows.some((w) => {
+    const open = istDateTimeFromIsoDate(date, w.start);
+    const close = istDateTimeFromIsoDate(date, w.end);
+    return start >= open && end <= close;
+  });
+}
+
 export function reasonForSlot(opts: {
   start: Date;
   end: Date;
@@ -48,28 +67,25 @@ export function reasonForSlot(opts: {
   return null;
 }
 
-function timeToMinutes(hhmm: string) {
-  const [h, m] = hhmm.split(":").map(Number);
-  return h * 60 + m;
-}
-
 export function generateDayStarts(
-  hours: { start: string; end: string } = DEFAULT_CLINIC.hours,
+  hours: { start: string; end: string; windows?: readonly { start: string; end: string }[] } = DEFAULT_CLINIC.hours,
   slotMinutes: number = DEFAULT_CLINIC.slotMinutes,
 ) {
-  const starts: string[] = [];
-  const from = timeToMinutes(hours.start);
-  const to = timeToMinutes(hours.end);
-  const step = slotMinutes > 0 ? slotMinutes : 30;
-  for (let t = from; t + step <= to; t += step) {
-    const h = Math.floor(t / 60);
-    const m = t % 60;
-    starts.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
-  }
-  return starts;
+  return generateStartsInWindows(hours, slotMinutes);
 }
 
 export function hoursLabel(clinic: Pick<ClinicRuntime, "hours" | "closedWeekdays">) {
-  const closed = clinic.closedWeekdays.includes(0) ? "Sunday closed" : "";
-  return `${clinic.hours.start}–${clinic.hours.end}${closed ? ` · ${closed}` : ""}`;
+  const hours = hoursWindowsLabel(clinic.hours);
+  const closed = closedDaysLabel(clinic.closedWeekdays);
+  return `${hours} · ${closed}`;
+}
+
+export function windowEndForStart(
+  isoDate: string,
+  timeHHMM: string,
+  hours: ClinicRuntime["hours"],
+  envelopeEnd: string,
+) {
+  const w = windowContainingStart(timeHHMM, hours);
+  return istDateTimeFromIsoDate(isoDate, w?.end ?? envelopeEnd);
 }

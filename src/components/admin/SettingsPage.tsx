@@ -6,6 +6,7 @@ import { useToast } from "@/components/admin/Toast";
 import type { AdminClinicDTO } from "@/lib/clinic-runtime";
 import { FEATURE_FLAG_KEYS } from "@/lib/clinic-config";
 import { apiJson } from "@/lib/api-client";
+import { hoursFromRuntime, type HoursWindow } from "@/lib/clinic-hours";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -16,8 +17,7 @@ export default function SettingsPage() {
   const [name, setName] = useState(clinic.name);
   const [shortName, setShortName] = useState(clinic.shortName);
   const [tagline, setTagline] = useState(clinic.tagline);
-  const [hoursOpen, setHoursOpen] = useState(clinic.hours.start);
-  const [hoursClose, setHoursClose] = useState(clinic.hours.end);
+  const [windows, setWindows] = useState<HoursWindow[]>(() => hoursFromRuntime(clinic.hours).windows);
   const [closedWeekdays, setClosedWeekdays] = useState<number[]>(clinic.closedWeekdays);
   const [slotMinutes, setSlotMinutes] = useState(clinic.slotMinutes);
   const [defaultDuration, setDefaultDuration] = useState(clinic.defaultDuration);
@@ -55,8 +55,7 @@ export default function SettingsPage() {
           name,
           shortName,
           tagline,
-          hoursOpen,
-          hoursClose,
+          hoursWindows: windows.map((w) => ({ start: w.start.slice(0, 5), end: w.end.slice(0, 5) })),
           closedWeekdays,
           slotMinutes,
           defaultDuration,
@@ -71,6 +70,7 @@ export default function SettingsPage() {
         }),
       });
       applyClinic(json);
+      setWindows(hoursFromRuntime(json.hours).windows);
       toast.push("Settings saved");
     } catch (err) {
       toast.push(err instanceof Error ? err.message : "Save failed", "err");
@@ -154,15 +154,48 @@ export default function SettingsPage() {
 
       <section className="card space-y-4 p-5">
         <h2 className="font-display text-lg text-teal-dark">Hours & slots</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <label className="label">Opens</label>
-            <input className="input" type="time" value={hoursOpen} onChange={(e) => setHoursOpen(e.target.value)} />
-          </div>
-          <div>
-            <label className="label">Closes</label>
-            <input className="input" type="time" value={hoursClose} onChange={(e) => setHoursClose(e.target.value)} />
-          </div>
+        <p className="text-sm text-slate-500">
+          Add one window for a full day, or several for a lunch gap — e.g. 10:00–14:00 and 16:00–21:00.
+        </p>
+        <div className="space-y-2">
+          <label className="label">Open windows</label>
+          {windows.map((w, i) => (
+            <div key={i} className="flex flex-wrap items-center gap-2">
+              <input
+                className="input max-w-[9rem]"
+                type="time"
+                value={w.start}
+                onChange={(e) =>
+                  setWindows((prev) => prev.map((row, j) => (j === i ? { ...row, start: e.target.value } : row)))
+                }
+              />
+              <span className="text-slate-400">–</span>
+              <input
+                className="input max-w-[9rem]"
+                type="time"
+                value={w.end}
+                onChange={(e) =>
+                  setWindows((prev) => prev.map((row, j) => (j === i ? { ...row, end: e.target.value } : row)))
+                }
+              />
+              <button
+                type="button"
+                className="btn-ghost px-2 text-sm"
+                disabled={windows.length <= 1}
+                onClick={() => setWindows((prev) => prev.filter((_, j) => j !== i))}
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            className="btn-secondary text-sm"
+            disabled={windows.length >= 8}
+            onClick={() => setWindows((prev) => [...prev, { start: "16:00", end: "21:00" }])}
+          >
+            Add window
+          </button>
         </div>
         <div>
           <label className="label">Closed weekdays</label>

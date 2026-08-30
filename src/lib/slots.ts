@@ -1,11 +1,14 @@
 import { ACTIVE_STATUSES, type ClinicRuntime } from "./clinic-config";
-import { addMinutes, istDateTimeFromIsoDate, toISODateIST } from "./datetime";
+import { addMinutes, istDateTimeFromIsoDate } from "./datetime";
 import { prisma } from "./prisma";
 import {
   calendarDateStatus,
   clinicClosedOn,
   generateDayStarts,
+  hoursLabel,
+  rangeFitsHours,
   reasonForSlot,
+  windowEndForStart,
   type DaySlots,
 } from "./slot-logic";
 
@@ -79,11 +82,10 @@ export async function listSlotsForDate(
   const booked = appointmentRows.map((a) => ({ start: a.startAt, end: a.endAt }));
   const blocked = blockRows.map((b) => ({ start: b.startAt, end: b.endAt }));
   const now = new Date();
-  const clinicEnd = istDateTimeFromIsoDate(isoDate, clinic.hours.end);
-
   const slots = generateDayStarts(clinic.hours, clinic.slotMinutes).map((time) => {
     const start = istDateTimeFromIsoDate(isoDate, time);
     const end = addMinutes(start, durationMin);
+    const clinicEnd = windowEndForStart(isoDate, time, clinic.hours, clinic.hours.end);
     const reason = reasonForSlot({ start, end, now, clinicEnd, dateStatus, booked, blocked });
     return reason ? { time, available: false, reason } : { time, available: true };
   });
@@ -136,11 +138,8 @@ export async function assertBookable(opts: {
     if (clinicClosedOn(opts.startAt, opts.clinic.closedWeekdays)) {
       return "Clinic is closed that day";
     }
-    const date = toISODateIST(opts.startAt);
-    const open = istDateTimeFromIsoDate(date, opts.clinic.hours.start);
-    const close = istDateTimeFromIsoDate(date, opts.clinic.hours.end);
-    if (opts.startAt < open || opts.endAt > close) {
-      return `Clinic hours are ${opts.clinic.hours.start}–${opts.clinic.hours.end}`;
+    if (!rangeFitsHours(opts.startAt, opts.endAt, opts.clinic.hours)) {
+      return `Clinic hours are ${hoursLabel(opts.clinic)}`;
     }
   }
   const conflicts = await findConflicts({

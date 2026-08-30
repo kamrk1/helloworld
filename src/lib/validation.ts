@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ALL_STATUSES } from "./clinic-config";
 import { isValidPhone, normalizePhone } from "./phone";
+import { validateHoursWindows } from "./clinic-hours";
 
 function blankToUndefined(value: unknown) {
   if (value === undefined || value === null) return undefined;
@@ -91,13 +92,24 @@ export const patientCreateSchema = z.object({
   concerns: z.string().trim().max(300).optional().nullable(),
 });
 
-export const clinicSettingsSchema = z.object({
+export const clinicSettingsSchema = z
+  .object({
   name: z.string().trim().min(2).max(80).optional(),
   shortName: z.string().trim().max(24).optional(),
   tagline: z.string().trim().max(120).optional(),
   timezone: z.string().trim().min(3).max(64).optional(),
   hoursOpen: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   hoursClose: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  hoursWindows: z
+    .array(
+      z.object({
+        start: z.string().regex(/^\d{2}:\d{2}$/),
+        end: z.string().regex(/^\d{2}:\d{2}$/),
+      }),
+    )
+    .min(1)
+    .max(8)
+    .optional(),
   closedWeekdays: z.array(z.number().int().min(0).max(6)).max(7).optional(),
   slotMinutes: z.number().int().min(5).max(120).optional(),
   defaultDuration: z.number().int().min(5).max(480).optional(),
@@ -118,7 +130,14 @@ export const clinicSettingsSchema = z.object({
       printClinic: z.boolean().optional(),
     })
     .optional(),
-});
+})
+  .superRefine((data, ctx) => {
+    if (!data.hoursWindows) return;
+    const checked = validateHoursWindows(data.hoursWindows);
+    if (!checked.ok) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["hoursWindows"], message: checked.error });
+    }
+  });
 
 export const platformCreateClinicSchema = z.object({
   slug: z.string().trim().toLowerCase().regex(/^[a-z0-9][a-z0-9-]{0,31}$/),
@@ -186,7 +205,7 @@ export function humanZodMessage(error: z.ZodError, fallback = "Please check the 
     if (path.includes("startAt")) return "Choose a date and time.";
     if (path.includes("durationMin")) return "Choose a duration between 5 and 480 minutes.";
     if (path.includes("service")) return "Choose a service.";
-    if (path.includes("date")) return "Choose a date.";
+    if (path.includes("hours")) return "Check clinic hours."
     if (path.includes("time") || path.includes("slot")) return "Choose a time slot.";
     return fallback;
   }

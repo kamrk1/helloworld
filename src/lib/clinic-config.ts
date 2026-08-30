@@ -77,7 +77,7 @@ export const DEFAULT_CLINIC = {
   shortName: "SDC",
   tagline: "Gentle, modern dentistry",
   timezone: DEFAULT_TIMEZONE,
-  hours: { start: "10:00", end: "20:00" },
+  hours: { start: "10:00", end: "20:00", windows: [{ start: "10:00", end: "20:00" }] },
   slotMinutes: 30,
   defaultDuration: 30,
   durations: [30, 60, 90] as number[],
@@ -99,7 +99,7 @@ export type ClinicRuntime = {
   shortName: string;
   tagline: string;
   timezone: string;
-  hours: { start: string; end: string };
+  hours: { start: string; end: string; windows: readonly { start: string; end: string }[] };
   slotMinutes: number;
   defaultDuration: number;
   durations: number[];

@@ -4,6 +4,7 @@ import { requireClinic } from "@/lib/require-admin";
 import { clinicSettingsSchema } from "@/lib/validation";
 import { toAdminClinic, toClinicRuntime } from "@/lib/clinic-runtime";
 import { getClinicRow } from "@/lib/tenant";
+import { envelopeHours, validateHoursWindows } from "@/lib/clinic-hours";
 
 export const GET = withPrismaRoute(async function GET() {
   const auth = await requireClinic();
@@ -24,6 +25,22 @@ export const PATCH = withPrismaRoute(async function PATCH(req: Request) {
     const currentRx = auth.clinic.rx;
     const nextRx = data.rx ? { ...currentRx, ...data.rx } : undefined;
 
+    let hoursOpen = data.hoursOpen;
+    let hoursClose = data.hoursClose;
+    let hoursJson: string | undefined;
+    if (data.hoursWindows) {
+      const checked = validateHoursWindows(data.hoursWindows);
+      if (!checked.ok) {
+        return NextResponse.json({ error: checked.error }, { status: 400 });
+      }
+      const env = envelopeHours(checked.windows);
+      hoursOpen = env.start;
+      hoursClose = env.end;
+      hoursJson = JSON.stringify(checked.windows);
+    } else if (data.hoursOpen && data.hoursClose) {
+      hoursJson = "[]";
+    }
+
     await prisma.clinic.update({
       where: { id: auth.clinic.id },
       data: {
@@ -31,8 +48,9 @@ export const PATCH = withPrismaRoute(async function PATCH(req: Request) {
         shortName: data.shortName,
         tagline: data.tagline,
         timezone: data.timezone,
-        hoursOpen: data.hoursOpen,
-        hoursClose: data.hoursClose,
+        hoursOpen,
+        hoursClose,
+        hoursJson,
         closedWeekdays: data.closedWeekdays ? JSON.stringify(data.closedWeekdays) : undefined,
         slotMinutes: data.slotMinutes,
         defaultDuration: data.defaultDuration,

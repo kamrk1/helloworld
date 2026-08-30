@@ -18,6 +18,7 @@ model Clinic {
   timezone        String         @default("Asia/Kolkata")
   hoursOpen       String         @default("10:00")
   hoursClose      String         @default("20:00")
+  hoursJson       String         @default("[]")
   closedWeekdays  String         @default("[0]")
   slotMinutes     Int            @default(30)
   defaultDuration Int            @default(30)

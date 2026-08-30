@@ -10,6 +10,7 @@ import {
   type ClinicRuntime,
   type FeatureFlags,
 } from "./clinic-config";
+import { resolveClinicHours } from "./clinic-hours";
 
 export type ClinicRow = Clinic;
 
@@ -25,10 +26,7 @@ export function toClinicRuntime(row: Clinic): ClinicRuntime {
     shortName: row.shortName || DEFAULT_CLINIC.shortName,
     tagline: row.tagline || DEFAULT_CLINIC.tagline,
     timezone: row.timezone || DEFAULT_CLINIC.timezone,
-    hours: {
-      start: row.hoursOpen || DEFAULT_CLINIC.hours.start,
-      end: row.hoursClose || DEFAULT_CLINIC.hours.end,
-    },
+    hours: resolveClinicHours(row.hoursOpen, row.hoursClose, row.hoursJson),
     slotMinutes: row.slotMinutes || DEFAULT_CLINIC.slotMinutes,
     defaultDuration: row.defaultDuration || DEFAULT_CLINIC.defaultDuration,
     durations: durations.length ? durations : [...DEFAULT_CLINIC.durations],

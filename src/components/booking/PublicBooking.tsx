@@ -6,7 +6,8 @@ import { displayPhone, isValidPhone, normalizePhone } from "@/lib/phone";
 import { apiJson } from "@/lib/api-client";
 import type { Slot, SlotReason } from "@/lib/slot-logic";
 import type { PublicClinicDTO } from "@/lib/clinic-runtime";
-import { closedDaysLabel, openDaysLabel } from "@/lib/hours-label";
+import { closedDaysLabel } from "@/lib/hours-label";
+import { hoursLabel } from "@/lib/slot-logic";
 import { clinicLoginPath } from "@/lib/clinic-config";
 
 function nextOpenDate(clinic: PublicClinicDTO) {
@@ -161,7 +162,7 @@ export function PublicBooking({ clinic }: { clinic: PublicClinicDTO }) {
           <div>
             <h1 className="font-display text-2xl font-semibold">{clinic.name}</h1>
             <p className="text-sm text-white/80">
-              {clinic.tagline} · {clinic.hours.start}–{clinic.hours.end} · {closedLabel}
+              {clinic.tagline} · {hoursLabel(clinic)}
             </p>
           </div>
         </div>
@@ -273,10 +274,7 @@ export function PublicBooking({ clinic }: { clinic: PublicClinicDTO }) {
         <aside className="space-y-4">
           <div className="overflow-hidden rounded-2xl bg-teal p-6 text-white shadow-card">
             <div className="font-display text-2xl">Clinic hours</div>
-            <p className="mt-3 text-white/85">
-              {openDaysLabel(clinic.closedWeekdays)} · {clinic.hours.start} – {clinic.hours.end}
-            </p>
-            <p className="text-white/85">{closedLabel}</p>
+            <p className="mt-3 text-white/85">{hoursLabel(clinic)}</p>
             {clinic.address && <p className="mt-3 text-sm text-white/80">{clinic.address}</p>}
             <p className="mt-4 text-sm text-gold-light">Timezone {clinic.timezone}</p>
           </div>

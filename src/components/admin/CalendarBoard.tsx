@@ -15,7 +15,8 @@ import type {
 import type { DateClickArg, EventResizeDoneArg } from "@fullcalendar/interaction";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { durationMinutes, fromCalendarDateClick, fromCalendarMarker } from "@/lib/datetime";
-import { overlaps } from "@/lib/slot-logic";
+import { overlaps, rangeFitsHours } from "@/lib/slot-logic";
+import { hoursFromRuntime } from "@/lib/clinic-hours";
 import { hhmmDuration, snapToSlotMinutes } from "@/lib/hours-label";
 import type { AppointmentDTO, BlockDTO } from "@/lib/types";
 import { useAdminData } from "./AdminDataProvider";
@@ -84,6 +85,7 @@ export function CalendarBoard() {
   const [blockRange, setBlockRange] = useState<{ start: Date; end: Date } | null>(null);
   const [selectedAppt, setSelectedAppt] = useState<AppointmentDTO | null>(null);
   const [selectedBlock, setSelectedBlock] = useState<BlockDTO | null>(null);
+  const [interacting, setInteracting] = useState(false);
   const banner = reachabilityBanner({ online, serverUnreachable, fromCache, refreshing });
 
   useEffect(() => {
@@ -102,6 +104,17 @@ export function CalendarBoard() {
     () => toEvents(snapshot.appointments, snapshot.blocks),
     [snapshot.appointments, snapshot.blocks],
   );
+
+  const hours = useMemo(() => hoursFromRuntime(clinic.hours), [clinic.hours]);
+
+  const businessHours = useMemo(() => {
+    const daysOfWeek = [0, 1, 2, 3, 4, 5, 6].filter((d) => !clinic.closedWeekdays.includes(d));
+    return hours.windows.map((w) => ({
+      daysOfWeek,
+      startTime: `${w.start}:00`,
+      endTime: `${w.end}:00`,
+    }));
+  }, [hours.windows, clinic.closedWeekdays]);
 
   function go(dir: "prev" | "next" | "today") {
     const api = calRef.current?.getApi();
@@ -155,6 +168,8 @@ export function CalendarBoard() {
 
     // Occupied visually but not in snapshot (or eventClick will follow) — never book a duplicate.
     if (hitEvent) return;
+
+    if (!rangeFitsHours(clickAt, slotEnd, hours)) return;
 
     setCreateStart(clickAt);
   }
@@ -229,6 +244,11 @@ export function CalendarBoard() {
     const durationMin = snapToSlotMinutes(durationMinutes(start, rawEnd), clinic.slotMinutes);
     const startAt = start.toISOString();
     const endAt = new Date(start.getTime() + durationMin * 60_000).toISOString();
+    if (!rangeFitsHours(start, new Date(start.getTime() + durationMin * 60_000), hours)) {
+      info.revert();
+      toast.push("That time is outside clinic hours", "err");
+      return;
+    }
     const resized = "endDelta" in info;
     upsertAppointment({ ...prev, startAt, endAt, durationMin });
     try {
@@ -292,15 +312,15 @@ export function CalendarBoard() {
       )}
 
       <div className="min-h-0 flex-1 px-2 py-2 md:px-4 md:py-3">
-        <div className="h-full overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-card">
+        <div className={`h-full overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-card${interacting ? " cal-interacting" : ""}`}>
           <FullCalendar
             ref={calRef}
             plugins={[timeGridPlugin, interactionPlugin, luxonPlugin]}
             initialView={view}
             headerToolbar={false}
             timeZone={clinic.timezone}
-            slotMinTime={clinic.hours.start + ":00"}
-            slotMaxTime={clinic.hours.end + ":00"}
+            slotMinTime={hours.start + ":00"}
+            slotMaxTime={hours.end + ":00"}
             slotDuration={hhmmDuration(clinic.slotMinutes)}
             snapDuration={hhmmDuration(clinic.slotMinutes)}
             allDaySlot={false}
@@ -312,6 +332,9 @@ export function CalendarBoard() {
             editable
             eventDurationEditable
             eventResizableFromStart={false}
+            businessHours={businessHours}
+            eventConstraint="businessHours"
+            selectConstraint="businessHours"
             selectLongPressDelay={500}
             eventLongPressDelay={250}
             height="100%"
@@ -325,13 +348,17 @@ export function CalendarBoard() {
                 ? { weekday: "long", month: "short", day: "numeric" }
                 : { weekday: "short", day: "numeric" }
             }
-            scrollTime={`${clinic.hours.start}:00`}
+            scrollTime={`${hours.start}:00`}
             events={events}
             dateClick={handleDateClick}
             select={handleSelect}
             eventClick={handleEventClick}
             eventDrop={persistTimes}
             eventResize={persistTimes}
+            eventDragStart={() => setInteracting(true)}
+            eventDragStop={() => setInteracting(false)}
+            eventResizeStart={() => setInteracting(true)}
+            eventResizeStop={() => setInteracting(false)}
             eventContent={(arg) => <EventInner arg={arg} />}
             datesSet={(arg) => setTitle(arg.view.title)}
             selectOverlap={() => false}

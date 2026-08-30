@@ -1,6 +1,6 @@
 import { prisma } from "./prisma";
 import { clinicPasswordDigest } from "./auth";
-import { ensureOptionalPatientPhone } from "./ensure-schema";
+import { ensureClinicSchema } from "./ensure-schema";
 import {
   DEFAULT_CLINIC,
   DEFAULT_FLAGS,
@@ -119,7 +119,7 @@ async function ensureDemo2Clinic() {
 
 /** Mint sdc + demo2 digests in this process (the host that will verify login). */
 export async function ensureKnownClinics() {
-  await ensureOptionalPatientPhone();
+  await ensureClinicSchema();
   await ensureSdcClinic();
   await ensureDemo2Clinic();
 }
@@ -127,6 +127,7 @@ export async function ensureKnownClinics() {
 /** Single findUnique. Tenant minting belongs on login / platform create, not every API hit. */
 export async function getClinicRow(id: string) {
   if (!isValidClinicSlug(id)) return null;
+  await ensureClinicSchema();
   return prisma.clinic.findUnique({ where: { id } });
 }
 
