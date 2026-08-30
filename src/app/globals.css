@@ -114,9 +114,16 @@
 }
 
 .fc .fc-timegrid-slots {
-  /* Empty-slot dateClick + drag-select need the slat table to receive hits.
-     Events still win: col layer is on top, harnesses have pointer-events auto. */
-  pointer-events: auto;
+  /* Slats are position:relative; z-index:1. Without this, they sit ON TOP of
+     .fc-timegrid-cols (z-index auto) and steal every mousedown. Date-select
+     then starts on the booking, selectOverlap paints the red slash, and
+     eventDrag never runs. Hits belong on the cols overlay: events to drag,
+     empty col-frame to Block / New appointment. */
+  pointer-events: none;
+}
+
+.fc .fc-timegrid-cols {
+  z-index: 3;
 }
 
 @media (max-width: 768px) {
@@ -191,7 +198,9 @@
   pointer-events: none;
 }
 
-.fc .fc-timegrid-col-events,
+/* Do not set pointer-events:none on .fc-timegrid-col-events: it is height 0
+   (no bottom:0) and Chrome then skips overflowing event descendants, so the
+   col-frame under the booking starts date-select. Leave events hittable. */
 .fc .fc-timegrid-col-misc,
 .fc .fc-timegrid-now-indicator-container {
   pointer-events: none;
