@@ -61,15 +61,14 @@ export async function PATCH(req: Request, { params }: Ctx) {
     }
 
     if (data.name || data.phone || data.email !== undefined) {
-      const phone = data.phone ? normalizePhone(data.phone) : existing.patient.phone;
-      if (data.phone && !isValidPhone(phone)) {
+      if (data.phone && !isValidPhone(data.phone)) {
         return NextResponse.json({ error: "Enter a 10-digit mobile number" }, { status: 400 });
       }
       await prisma.patient.update({
         where: { id: existing.patientId },
         data: {
           name: data.name ?? undefined,
-          phone: data.phone ? phone : undefined,
+          phone: data.phone ? normalizePhone(data.phone) : undefined,
           email: data.email === undefined ? undefined : data.email || null,
         },
       });

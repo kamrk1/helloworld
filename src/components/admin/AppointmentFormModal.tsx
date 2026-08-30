@@ -41,7 +41,7 @@ export function AppointmentFormModal({
   function pickPatient(p: PatientDTO) {
     setPatientId(p.id);
     setName(p.name);
-    setPhone(p.phone);
+    setPhone(p.phone ?? "");
     setEmail(p.email ?? "");
   }
 
@@ -53,10 +53,13 @@ export function AppointmentFormModal({
         setError("Patient name is required");
         return;
       }
-      if (!isValidPhone(phone)) {
+      if (phone.trim() && !isValidPhone(phone)) {
         setError("Enter a 10-digit mobile number");
         return;
       }
+    } else if (phone.trim() && !isValidPhone(phone)) {
+      setError("Enter a 10-digit mobile number");
+      return;
     }
     if (!date || !time) {
       setError("Choose a date and time.");
@@ -81,7 +84,7 @@ export function AppointmentFormModal({
       if (email.trim()) payload.email = email.trim();
     } else {
       payload.name = name.trim();
-      payload.phone = normalizePhone(phone);
+      if (phone.trim()) payload.phone = normalizePhone(phone);
       if (email.trim()) payload.email = email.trim();
     }
     setBusy(true);

@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { MessageCircle } from "lucide-react";
 import { useAdminData } from "@/components/admin/AdminDataProvider";
 import { addDays, formatDateLong, startOfDayIST, startOfWeekMondayIST } from "@/lib/datetime";
-import { waLink } from "@/lib/phone";
+import { hasMobile, waLink } from "@/lib/phone";
 
 type Tab = "overdue" | "imminent" | "week";
 
@@ -69,7 +69,7 @@ export default function FollowUpsPage() {
                 Follow-up {formatDateLong(new Date(a.followupDate!))} · {a.service} · {a.ref}
               </div>
             </div>
-            {clinic.flags.whatsapp && (
+            {clinic.flags.whatsapp && hasMobile(a.phone) && (
             <a
               className="btn-secondary"
               href={waLink(

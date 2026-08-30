@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireClinic } from "@/lib/require-admin";
 import { appointmentCreateSchema, humanZodMessage } from "@/lib/validation";
-import { normalizePhone, isValidPhone } from "@/lib/phone";
+import { createOrReuseStaffPatient } from "@/lib/staff-patient";
 import { addMinutes } from "@/lib/datetime";
 import { assertBookable } from "@/lib/slots";
 import {
@@ -54,24 +54,19 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Patient not found" }, { status: 400 });
       }
     } else {
-      if (!data.name || !data.phone) {
-        return NextResponse.json({ error: "Patient name and phone are required" }, { status: 400 });
+      if (!data.name) {
+        return NextResponse.json({ error: "Patient name is required" }, { status: 400 });
       }
-      const phone = normalizePhone(data.phone);
-      if (!isValidPhone(phone)) {
-        return NextResponse.json({ error: "Enter a 10-digit mobile number" }, { status: 400 });
-      }
-      const patient = await prisma.patient.upsert({
-        where: { clinicId_phone: { clinicId: clinic.id, phone } },
-        create: {
-          clinicId: clinic.id,
-          phone,
-          name: data.name.trim(),
-          email: data.email ? data.email : null,
-        },
-        update: { name: data.name.trim(), email: data.email ? data.email : undefined },
+      const result = await createOrReuseStaffPatient({
+        clinicId: clinic.id,
+        name: data.name,
+        phone: data.phone,
+        email: data.email,
       });
-      patientId = patient.id;
+      if ("error" in result) {
+        return NextResponse.json({ error: result.error }, { status: 400 });
+      }
+      patientId = result.patient.id;
     }
 
     const created = await prisma.appointment.create({

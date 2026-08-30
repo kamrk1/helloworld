@@ -28,7 +28,7 @@ export function PatientTypeahead({
       .filter(
         (p) =>
           p.name.toLowerCase().includes(q) ||
-          p.phone.includes(q.replace(/\s/g, "")) ||
+          (p.phone ?? "").includes(q.replace(/\s/g, "")) ||
           (p.email ?? "").toLowerCase().includes(q),
       )
       .slice(0, 8);
@@ -85,7 +85,7 @@ export function PatientTypeahead({
             onChange({ phone: e.target.value });
             setOpen(true);
           }}
-          placeholder="10-digit mobile"
+          placeholder="optional"
         />
       </div>
       {open && matches.length > 0 && (
@@ -103,7 +103,7 @@ export function PatientTypeahead({
               }`}
             >
               <span className="font-medium text-slate-800">{p.name}</span>
-              <span className="text-xs text-slate-500">{displayPhone(p.phone)}</span>
+              <span className="text-xs text-slate-500">{displayPhone(p.phone) || "No mobile"}</span>
             </button>
           ))}
         </div>

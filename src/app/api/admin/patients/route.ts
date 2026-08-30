@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireClinic } from "@/lib/require-admin";
 import { humanZodMessage, patientCreateSchema } from "@/lib/validation";
-import { normalizePhone, isValidPhone } from "@/lib/phone";
+import { createOrReuseStaffPatient } from "@/lib/staff-patient";
 import { toPatientDTO } from "@/lib/serializers";
 
 export async function GET() {
@@ -24,26 +24,17 @@ export async function POST(req: Request) {
     if (!parsed.success) {
       return NextResponse.json({ error: humanZodMessage(parsed.error) }, { status: 400 });
     }
-    const phone = normalizePhone(parsed.data.phone);
-    if (!isValidPhone(phone)) {
-      return NextResponse.json({ error: "Enter a 10-digit mobile number" }, { status: 400 });
-    }
-    const created = await prisma.patient.upsert({
-      where: { clinicId_phone: { clinicId: auth.clinic.id, phone } },
-      create: {
-        clinicId: auth.clinic.id,
-        phone,
-        name: parsed.data.name,
-        email: parsed.data.email ? parsed.data.email : null,
-        concerns: parsed.data.concerns ?? null,
-      },
-      update: {
-        name: parsed.data.name,
-        email: parsed.data.email ? parsed.data.email : undefined,
-        concerns: parsed.data.concerns ?? undefined,
-      },
+    const result = await createOrReuseStaffPatient({
+      clinicId: auth.clinic.id,
+      name: parsed.data.name,
+      phone: parsed.data.phone,
+      email: parsed.data.email,
+      concerns: parsed.data.concerns,
     });
-    return NextResponse.json(toPatientDTO(created));
+    if ("error" in result) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
+    return NextResponse.json(toPatientDTO(result.patient));
   } catch (err) {
     const message = err instanceof Error ? err.message : "Create failed";
     return NextResponse.json({ error: message }, { status: 500 });

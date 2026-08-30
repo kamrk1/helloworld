@@ -75,7 +75,7 @@ export default async function PrintRxPage({
           </div>
           <div>
             <div className="text-[11px] font-semibold uppercase text-slate-400">Phone</div>
-            <div>{displayPhone(appt.patient.phone)}</div>
+            <div>{displayPhone(appt.patient.phone) || "—"}</div>
           </div>
           <div>
             <div className="text-[11px] font-semibold uppercase text-slate-400">Ref</div>

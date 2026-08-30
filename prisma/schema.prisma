@@ -45,7 +45,7 @@ model Patient {
   id            String        @id @default(cuid())
   clinicId      String
   clinic        Clinic        @relation(fields: [clinicId], references: [id], onDelete: Cascade)
-  phone         String
+  phone         String?
   name          String
   email         String?
   firstVisit    DateTime?

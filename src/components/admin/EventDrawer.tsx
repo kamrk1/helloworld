@@ -4,7 +4,7 @@ import { useState } from "react";
 import { MessageCircle, Phone, Printer, Trash2, X } from "lucide-react";
 import type { AppointmentDTO, BlockDTO } from "@/lib/types";
 import type { AppointmentStatus } from "@/lib/clinic-config";
-import { displayPhone, telLink, waLink } from "@/lib/phone";
+import { displayPhone, hasMobile, telLink, waLink } from "@/lib/phone";
 import { formatDateTime, toISODateIST } from "@/lib/datetime";
 import { STATUS_LABEL, statusClass } from "@/lib/status";
 import { useAdminData } from "./AdminDataProvider";
@@ -146,19 +146,22 @@ export function EventDrawer({
                 </div>
                 <div className="card p-4 text-sm">
                   <div className="font-semibold text-slate-800">{live.service}</div>
-                  <div className="mt-2 text-slate-600">{displayPhone(live.phone)}</div>
+                  {hasMobile(live.phone) && (
+                    <div className="mt-2 text-slate-600">{displayPhone(live.phone)}</div>
+                  )}
                   {live.email && <div className="text-slate-500">{live.email}</div>}
                   {live.notes && <p className="mt-3 text-slate-600">{live.notes}</p>}
                 </div>
+                {hasMobile(live.phone) && (
                 <div className="flex gap-2">
-                  <a className="btn-primary flex-1" href={telLink(live.phone)}>
+                  <a className="btn-primary flex-1" href={telLink(live.phone!)}>
                     <Phone className="h-4 w-4" /> Call
                   </a>
                   {flags.whatsapp && (
                     <a
                       className="btn-secondary flex-1"
                       href={waLink(
-                        live.phone,
+                        live.phone!,
                         `Hello ${live.patientName}, this is ${clinic.name} regarding your appointment ${live.ref} on ${formatDateTime(new Date(live.startAt))}.`,
                       )}
                       target="_blank"
@@ -168,6 +171,7 @@ export function EventDrawer({
                     </a>
                   )}
                 </div>
+                )}
                 {live.status === "PENDING" && (
                   <div className="flex gap-2">
                     <button className="btn-primary flex-1" disabled={busy} onClick={() => setStatus("APPROVED")}>

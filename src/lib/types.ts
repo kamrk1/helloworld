@@ -6,7 +6,7 @@ export type AppointmentDTO = {
   ref: string;
   patientId: string;
   patientName: string;
-  phone: string;
+  phone: string | null;
   email: string | null;
   service: string;
   startAt: string;
@@ -22,7 +22,7 @@ export type AppointmentDTO = {
 
 export type PatientDTO = {
   id: string;
-  phone: string;
+  phone: string | null;
   name: string;
   email: string | null;
   firstVisit: string | null;

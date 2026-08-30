@@ -3,7 +3,7 @@
 import { useAdminData } from "@/components/admin/AdminDataProvider";
 import { useToast } from "@/components/admin/Toast";
 import { formatDateTime } from "@/lib/datetime";
-import { displayPhone, waLink } from "@/lib/phone";
+import { displayPhone, hasMobile, waLink } from "@/lib/phone";
 import { MessageCircle } from "lucide-react";
 import type { AppointmentDTO } from "@/lib/types";
 import { apiJson } from "@/lib/api-client";
@@ -49,11 +49,11 @@ export default function PendingPage() {
                 <div className="text-sm text-slate-500">
                   {a.service} · {formatDateTime(new Date(a.startAt))} · {a.durationMin} min
                 </div>
-                <div className="text-sm text-slate-500">{displayPhone(a.phone)}</div>
+                {hasMobile(a.phone) && <div className="text-sm text-slate-500">{displayPhone(a.phone)}</div>}
                 {a.notes && <p className="mt-2 text-sm text-slate-600">{a.notes}</p>}
               </div>
               <div className="flex flex-wrap gap-2">
-                {clinic.flags.whatsapp && (
+                {clinic.flags.whatsapp && hasMobile(a.phone) && (
                   <a
                     className="btn-secondary"
                     href={waLink(a.phone, `Hello ${a.patientName}, ${clinic.name} here about ${a.ref}.`)}

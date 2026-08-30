@@ -56,9 +56,6 @@ export const appointmentCreateSchema = z
     if (!data.name) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["name"], message: "Patient name is required" });
     }
-    if (!data.phone) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["phone"], message: "Enter a 10-digit mobile number" });
-    }
   });
 
 export const appointmentPatchSchema = z.object({
@@ -89,7 +86,7 @@ export const blockCreateSchema = z.object({
 
 export const patientCreateSchema = z.object({
   name: patientName,
-  phone: phoneSchema,
+  phone: optionalPhoneSchema,
   email: z.string().trim().email().optional().or(z.literal("")),
   concerns: z.string().trim().max(300).optional().nullable(),
 });
