@@ -1,5 +1,6 @@
 import { prisma } from "./prisma";
 import { clinicPasswordDigest } from "./auth";
+import { ensureOptionalPatientPhone } from "./ensure-schema";
 import {
   DEFAULT_CLINIC,
   DEFAULT_FLAGS,
@@ -118,6 +119,7 @@ async function ensureDemo2Clinic() {
 
 /** Mint sdc + demo2 digests in this process (the host that will verify login). */
 export async function ensureKnownClinics() {
+  await ensureOptionalPatientPhone();
   await ensureSdcClinic();
   await ensureDemo2Clinic();
 }
