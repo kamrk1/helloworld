@@ -70,15 +70,16 @@ async function applyOptionalPatientPhone() {
 }
 
 async function applyHoursJsonColumn() {
-  const rows = await prisma.$queryRawUnsafe<Array<{ column_name: string }>>(
-    `SELECT column_name
-     FROM information_schema.columns
-     WHERE table_schema = 'public'
-       AND table_name = 'Clinic'
-       AND column_name = 'hoursJson'
-     LIMIT 1`,
+  const rows = await prisma.$queryRawUnsafe<Array<{ present: boolean }>>(
+    `SELECT EXISTS (
+       SELECT 1
+       FROM information_schema.columns
+       WHERE table_schema = 'public'
+         AND table_name = 'Clinic'
+         AND column_name = 'hoursJson'
+     ) AS present`,
   );
-  if (rows.length) return;
+  if (rows[0]?.present) return;
   await prisma.$executeRawUnsafe(
     `ALTER TABLE "Clinic" ADD COLUMN IF NOT EXISTS "hoursJson" TEXT NOT NULL DEFAULT '[]'`,
   );
