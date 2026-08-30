@@ -106,13 +106,13 @@ type AppointmentCreateFields = {
   status?: string;
 };
 
+/** INSERT only — no include (that wraps BEGIN/SELECT patient+rx/COMMIT ≈ 4 RTTs). */
 export async function insertAppointment(data: AppointmentCreateFields) {
   let lastErr: unknown;
   for (let i = 0; i < 8; i++) {
     try {
       return await prisma.appointment.create({
         data: { ...data, ref: uniqueRef(data.clinicId, data.startAt) },
-        include: appointmentInclude,
       });
     } catch (err) {
       lastErr = err;
@@ -120,6 +120,10 @@ export async function insertAppointment(data: AppointmentCreateFields) {
     }
   }
   throw lastErr instanceof Error ? lastErr : new Error("Could not allocate appointment ref");
+}
+
+export function toAppointmentDTOFromPatient(row: Appointment, patient: Patient): AppointmentDTO {
+  return toAppointmentDTO({ ...row, patient, prescription: null });
 }
 
 const ACTIVE_STATUSES = ["PENDING", "APPROVED", "CONFIRMED"] as const;

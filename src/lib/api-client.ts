@@ -37,6 +37,7 @@ export function isNavigatorOffline(onLine: boolean | undefined): boolean {
 /** Classify a thrown fetch/network failure. Never calls the user “offline” while they are online. */
 export function errorAfterFetchFailure(onLine: boolean | undefined): Error {
   if (isNavigatorOffline(onLine)) return new OfflineError();
+  if (onLine === true) return new Error(SERVER_ERROR_MESSAGE);
   return new UnreachableError();
 }
 
@@ -83,7 +84,10 @@ export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Pr
   }
   try {
     const res = await fetch(input, init);
-    announceReachability(res.status >= 500 ? "unreachable" : "reachable");
+    // 5xx while the browser is online is a server error, not an offline/unreachable banner.
+    if (res.status < 500 || isNavigatorOffline(navigatorOnLine())) {
+      announceReachability(res.status >= 500 ? "unreachable" : "reachable");
+    }
     return res;
   } catch {
     const err = errorAfterFetchFailure(navigatorOnLine());

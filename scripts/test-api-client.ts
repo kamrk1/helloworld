@@ -31,14 +31,17 @@ assert(offlineErr instanceof OfflineError, "fetch throw while offline is Offline
 assert(offlineErr.message === OFFLINE_WRITE_MESSAGE, "offline fetch uses offline copy");
 assert(!offlineErr.message.toLowerCase().includes("can't reach"), "offline copy is not unreachable copy");
 
-const unreachableErr = errorAfterFetchFailure(true);
-assert(unreachableErr instanceof UnreachableError, "fetch throw while online is UnreachableError");
-assert(unreachableErr.message === UNREACHABLE_MESSAGE, "online fetch failure is can't-reach copy");
-assert(!/offline/i.test(unreachableErr.message), "online fetch failure must not say offline");
+const timeoutOnline = errorAfterFetchFailure(true);
+assert(!(timeoutOnline instanceof OfflineError), "fetch throw while online is not OfflineError");
+assert(!(timeoutOnline instanceof UnreachableError), "timeout while online is not the unreachable banner error");
+assert(timeoutOnline.message === SERVER_ERROR_MESSAGE, "timeout while online keeps Clinic server error copy");
+assert(!/offline/i.test(timeoutOnline.message), "online fetch failure must not say offline");
+assert(!/can't reach/i.test(timeoutOnline.message), "online timeout must not show can't-reach copy");
 
 const unknownErr = errorAfterFetchFailure(undefined);
 assert(unknownErr instanceof UnreachableError, "unknown online status is treated as unreachable, not offline");
 assert(!/offline/i.test(unknownErr.message), "unknown status must not say offline");
+assert(unknownErr.message === UNREACHABLE_MESSAGE, "unknown status uses can't-reach copy");
 
 const serverErr = errorFromHttpResponse(502);
 assert(!(serverErr instanceof OfflineError), "502 is not OfflineError");

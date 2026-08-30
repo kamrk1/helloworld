@@ -4,7 +4,7 @@ import { bookSchema, humanZodMessage } from "./validation";
 import { normalizePhone, isValidPhone } from "./phone";
 import { addMinutes, istDateTimeFromIsoDate } from "./datetime";
 import { assertBookable, listSlotsForDate } from "./slots";
-import { insertAppointment, recordPatientBooking, toAppointmentDTO } from "./serializers";
+import { insertAppointment, recordPatientBooking, toAppointmentDTOFromPatient } from "./serializers";
 import { requireEnabledClinic } from "./tenant";
 import { defaultClinicId, isValidClinicSlug } from "./clinic-config";
 import { toPublicClinic } from "./clinic-runtime";
@@ -92,6 +92,6 @@ export async function createPublicBooking(clinic: ClinicRuntime, json: unknown) 
   return NextResponse.json({
     ok: true,
     clinic: toPublicClinic(clinic),
-    appointment: toAppointmentDTO(created),
+    appointment: toAppointmentDTOFromPatient(created, patient),
   });
 }

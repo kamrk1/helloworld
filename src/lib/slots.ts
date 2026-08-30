@@ -97,6 +97,8 @@ export async function findConflicts(opts: {
   excludeAppointmentId?: string;
   excludeBlockId?: string;
 }) {
+  // Independent reads. On Workers the per-request Pool is max:1, so these
+  // still run sequentially on the wire — staff POST uses one UNION instead.
   const [appointments, blocks] = await Promise.all([
     prisma.appointment.findMany({
       where: {
