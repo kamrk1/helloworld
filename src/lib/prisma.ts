@@ -1,4 +1,3 @@
-import { AsyncLocalStorage } from "node:async_hooks";
 import { cache } from "react";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -29,7 +28,7 @@ const globalForPrisma = globalThis as unknown as {
   prisma?: ClinicPrisma;
 };
 
-const prismaAls = new AsyncLocalStorage<ClinicPrisma>();
+const requestClients = new Map<string, ClinicPrisma>();
 
 function isWorkerdRuntime() {
   return (
@@ -42,7 +41,6 @@ function createPgAdapterClient(url: string): ClinicPrisma {
   const pool = new Pool({
     connectionString: url,
     max: 1,
-    // Request-scoped: do not hold TCP across Worker requests.
     idleTimeoutMillis: 5_000,
     connectionTimeoutMillis: 10_000,
     allowExitOnIdle: true,
@@ -62,24 +60,37 @@ function createClient(): ClinicPrisma {
   });
 }
 
-/**
- * One Pool for this request (shared across prisma.x access), not for the isolate.
- * A process-lifetime pg Pool on workerd cannot keep TCP/TLS and times out (~8s).
- */
-function requestScopedClient(): ClinicPrisma {
-  const existing = prismaAls.getStore();
+function requestKey(): string | null {
+  try {
+    // Lazy require so seed/import scripts do not load next/headers.
+    const { headers } = require("next/headers") as typeof import("next/headers");
+    const h = headers();
+    return h.get("cf-ray") || h.get("x-request-id");
+  } catch {
+    return null;
+  }
+}
+
+function clientForRequestKey(key: string): ClinicPrisma {
+  const existing = requestClients.get(key);
   if (existing) return existing;
   const client = createClient();
-  prismaAls.enterWith(client);
+  requestClients.set(key, client);
+  if (requestClients.size > 16) {
+    const oldest = requestClients.keys().next().value;
+    if (oldest && oldest !== key) requestClients.delete(oldest);
+  }
   return client;
 }
 
-const getPrismaForRequest =
-  typeof cache === "function" ? cache(requestScopedClient) : requestScopedClient;
+/** React cache() is per-request when it works; never a process-lifetime Pool on workerd. */
+const getPrismaForRequest = typeof cache === "function" ? cache(createClient) : createClient;
 
 export function getPrisma(): ClinicPrisma {
   const url = databaseUrl();
   if (isPostgresUrl(url) && isWorkerdRuntime()) {
+    const key = requestKey();
+    if (key) return clientForRequestKey(key);
     return getPrismaForRequest();
   }
   if (!globalForPrisma.prisma) {
