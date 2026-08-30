@@ -163,7 +163,28 @@ export function CalendarBoard() {
     const start = fromCalendarMarker(info.start, info.startStr);
     const end = fromCalendarMarker(info.end, info.endStr);
     info.view.calendar.unselect();
+
+    const target = info.jsEvent?.target;
+    if (
+      target instanceof Element &&
+      target.closest(".fc-event, .fc-timegrid-event, .fc-timegrid-event-harness, .fc-event-resizer")
+    ) {
+      return;
+    }
+
     if (end.getTime() - start.getTime() < 60_000) return;
+
+    const hitsAppointment = snapshot.appointments.some(
+      (a) =>
+        a.status !== "REJECTED" &&
+        a.status !== "CANCELLED" &&
+        overlaps(start, end, new Date(a.startAt), new Date(a.endAt)),
+    );
+    const hitsBlock = snapshot.blocks.some((b) =>
+      overlaps(start, end, new Date(b.startAt), new Date(b.endAt)),
+    );
+    if (hitsAppointment || hitsBlock) return;
+
     if (!clinic.flags.closures) {
       toast.push("Closures are not in this clinic package", "err");
       return;
@@ -291,7 +312,7 @@ export function CalendarBoard() {
             editable
             eventDurationEditable
             eventResizableFromStart={false}
-            selectLongPressDelay={250}
+            selectLongPressDelay={500}
             eventLongPressDelay={250}
             height="100%"
             expandRows
@@ -313,7 +334,7 @@ export function CalendarBoard() {
             eventResize={persistTimes}
             eventContent={(arg) => <EventInner arg={arg} />}
             datesSet={(arg) => setTitle(arg.view.title)}
-            selectOverlap={(ev) => ev.extendedProps.kind !== "block"}
+            selectOverlap={() => false}
             eventOverlap={(still) => still.extendedProps.kind !== "block"}
           />
         </div>

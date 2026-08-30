@@ -197,13 +197,17 @@
   pointer-events: none;
 }
 
-.fc .fc-timegrid-event-harness,
+.fc .fc-timegrid-event-harness {
+  pointer-events: auto !important;
+  z-index: 6;
+}
+
 .fc .fc-timegrid-event,
-.fc .fc-event,
+.fc .fc-event:not(.fc-bg-event):not(.fc-event-mirror),
 .fc .fc-event-main,
 .fc .fc-event-resizer {
-  pointer-events: auto;
-  z-index: 5;
+  pointer-events: auto !important;
+  z-index: 6;
 }
 
 /* Drag/resize mirrors sit outside the timegrid. If children keep pointer-events,
