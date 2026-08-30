@@ -1,4 +1,4 @@
-import type { Appointment, Patient, ClinicBlock, Prescription } from "@prisma/client";
+import { Prisma, type Appointment, type Patient, type ClinicBlock, type Prescription } from "@prisma/client";
 import type { AppointmentStatus, ClinicRuntime } from "./clinic-config";
 import type { AppointmentDTO, BlockDTO, PatientDTO, PrescriptionDTO } from "./types";
 import { prisma } from "./prisma";
@@ -75,41 +75,95 @@ export function makeRef(clinicId: string, date: Date) {
   return `${prefix}-${ymd}-${rand}`;
 }
 
-export async function uniqueRef(clinicId: string, date: Date) {
-  for (let i = 0; i < 8; i++) {
-    const ref = makeRef(clinicId, date);
-    const exists = await prisma.appointment.findUnique({
-      where: { clinicId_ref: { clinicId, ref } },
-      select: { id: true },
-    });
-    if (!exists) return ref;
-  }
-  const prefix = clinicId.replace(/[^a-z0-9]/gi, "").slice(0, 8).toUpperCase() || "CLN";
-  return `${prefix}-${Date.now().toString(36).toUpperCase()}`;
+/** Random clinic-day ref. Insert and retry on unique conflict — no SELECT first. */
+export function uniqueRef(clinicId: string, date: Date) {
+  return makeRef(clinicId, date);
 }
 
-export async function refreshPatientStats(patientId: string) {
-  const appts = await prisma.appointment.findMany({
-    where: { patientId, status: { in: ["PENDING", "APPROVED", "CONFIRMED"] } },
-    orderBy: { startAt: "asc" },
-    select: { startAt: true, service: true },
-  });
-  const concerns = Array.from(new Set(appts.map((a) => a.service))).join(", ");
-  return prisma.patient.update({
-    where: { id: patientId },
-    data: {
-      totalBookings: appts.length,
-      firstVisit: appts[0]?.startAt ?? null,
-      lastVisit: appts[appts.length - 1]?.startAt ?? null,
-      concerns: concerns || null,
-    },
-  });
+function isUniqueRefConflict(err: unknown) {
+  if (!(err instanceof Prisma.PrismaClientKnownRequestError) || err.code !== "P2002") {
+    return false;
+  }
+  const target = err.meta?.target;
+  if (Array.isArray(target)) return target.includes("ref");
+  if (typeof target === "string") return target.includes("ref");
+  return true;
 }
 
 export const appointmentInclude = {
   patient: true,
   prescription: { select: { id: true } },
 } as const;
+
+type AppointmentCreateFields = {
+  clinicId: string;
+  patientId: string;
+  service: string;
+  startAt: Date;
+  endAt: Date;
+  durationMin: number;
+  notes?: string | null;
+  status?: string;
+};
+
+export async function insertAppointment(data: AppointmentCreateFields) {
+  let lastErr: unknown;
+  for (let i = 0; i < 8; i++) {
+    try {
+      return await prisma.appointment.create({
+        data: { ...data, ref: uniqueRef(data.clinicId, data.startAt) },
+        include: appointmentInclude,
+      });
+    } catch (err) {
+      lastErr = err;
+      if (!isUniqueRefConflict(err)) throw err;
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error("Could not allocate appointment ref");
+}
+
+const ACTIVE_STATUSES = ["PENDING", "APPROVED", "CONFIRMED"] as const;
+
+/** One UPDATE for a new booking — no history scan. */
+export async function recordPatientBooking(patientId: string, startAt: Date) {
+  await prisma.$executeRaw`
+    UPDATE "Patient"
+    SET
+      "totalBookings" = "totalBookings" + 1,
+      "firstVisit" = COALESCE("firstVisit", ${startAt}),
+      "lastVisit" = CASE
+        WHEN "lastVisit" IS NULL OR "lastVisit" < ${startAt} THEN ${startAt}
+        ELSE "lastVisit"
+      END,
+      "updatedAt" = ${new Date()}
+    WHERE "id" = ${patientId}
+  `;
+}
+
+export async function refreshPatientStats(patientId: string) {
+  const [agg, services] = await Promise.all([
+    prisma.appointment.aggregate({
+      where: { patientId, status: { in: [...ACTIVE_STATUSES] } },
+      _count: { _all: true },
+      _min: { startAt: true },
+      _max: { startAt: true },
+    }),
+    prisma.appointment.findMany({
+      where: { patientId, status: { in: [...ACTIVE_STATUSES] } },
+      distinct: ["service"],
+      select: { service: true },
+    }),
+  ]);
+  return prisma.patient.update({
+    where: { id: patientId },
+    data: {
+      totalBookings: agg._count._all,
+      firstVisit: agg._min.startAt,
+      lastVisit: agg._max.startAt,
+      concerns: services.map((s) => s.service).join(", ") || null,
+    },
+  });
+}
 
 export async function loadSnapshot(clinic: ClinicRuntime) {
   const [appointments, patients, blocks] = await Promise.all([

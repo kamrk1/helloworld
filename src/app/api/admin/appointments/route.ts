@@ -7,10 +7,16 @@ import { addMinutes } from "@/lib/datetime";
 import { assertBookable } from "@/lib/slots";
 import {
   appointmentInclude,
-  refreshPatientStats,
+  insertAppointment,
+  recordPatientBooking,
   toAppointmentDTO,
-  uniqueRef,
 } from "@/lib/serializers";
+
+function timingHeader(parts: Record<string, number>) {
+  return Object.entries(parts)
+    .map(([name, dur]) => `${name};dur=${Math.max(0, Math.round(dur))}`)
+    .join(", ");
+}
 
 export async function GET() {
   const auth = await requireClinic();
@@ -24,7 +30,10 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const t0 = Date.now();
+  const marks: Record<string, number> = {};
   const auth = await requireClinic();
+  marks.auth = Date.now() - t0;
   if (auth.error) return auth.error;
   const clinic = auth.clinic;
   try {
@@ -41,10 +50,13 @@ export async function POST(req: Request) {
     const durationMin = data.durationMin ?? clinic.defaultDuration;
     const endAt = addMinutes(startAt, durationMin);
 
+    let t = Date.now();
     const conflict = await assertBookable({ clinic, startAt, endAt, allowOutsideHours: true });
+    marks.bookable = Date.now() - t;
     if (conflict) return NextResponse.json({ error: conflict }, { status: 409 });
 
     let patientId = data.patientId;
+    t = Date.now();
     if (patientId) {
       const owned = await prisma.patient.findFirst({
         where: { id: patientId, clinicId: clinic.id },
@@ -62,32 +74,41 @@ export async function POST(req: Request) {
         name: data.name,
         phone: data.phone,
         email: data.email,
+        concerns: data.service,
       });
       if ("error" in result) {
         return NextResponse.json({ error: result.error }, { status: 400 });
       }
       patientId = result.patient.id;
     }
+    marks.patient = Date.now() - t;
 
-    const created = await prisma.appointment.create({
-      data: {
-        clinicId: clinic.id,
-        ref: await uniqueRef(clinic.id, startAt),
-        patientId,
-        service: data.service,
-        startAt,
-        endAt,
-        durationMin,
-        notes: data.notes ?? null,
-        status: data.status ?? "APPROVED",
-      },
-      include: appointmentInclude,
+    t = Date.now();
+    const created = await insertAppointment({
+      clinicId: clinic.id,
+      patientId,
+      service: data.service,
+      startAt,
+      endAt,
+      durationMin,
+      notes: data.notes ?? null,
+      status: data.status ?? "APPROVED",
     });
-    await refreshPatientStats(patientId);
+    marks.insert = Date.now() - t;
 
-    return NextResponse.json(toAppointmentDTO(created));
+    t = Date.now();
+    await recordPatientBooking(patientId, startAt);
+    marks.stats = Date.now() - t;
+    marks.total = Date.now() - t0;
+
+    const res = NextResponse.json(toAppointmentDTO(created));
+    res.headers.set("Server-Timing", timingHeader(marks));
+    return res;
   } catch (err) {
     const message = err instanceof Error ? err.message : "Create failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const res = NextResponse.json({ error: message }, { status: 500 });
+    marks.total = Date.now() - t0;
+    res.headers.set("Server-Timing", timingHeader(marks));
+    return res;
   }
 }

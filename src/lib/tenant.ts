@@ -124,8 +124,8 @@ export async function ensureKnownClinics() {
   await ensureDemo2Clinic();
 }
 
+/** Single findUnique. Tenant minting belongs on login / platform create, not every API hit. */
 export async function getClinicRow(id: string) {
-  await ensureKnownClinics();
   if (!isValidClinicSlug(id)) return null;
   return prisma.clinic.findUnique({ where: { id } });
 }

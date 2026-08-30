@@ -4,7 +4,7 @@ import { bookSchema, humanZodMessage } from "./validation";
 import { normalizePhone, isValidPhone } from "./phone";
 import { addMinutes, istDateTimeFromIsoDate } from "./datetime";
 import { assertBookable, listSlotsForDate } from "./slots";
-import { appointmentInclude, refreshPatientStats, toAppointmentDTO, uniqueRef } from "./serializers";
+import { insertAppointment, recordPatientBooking, toAppointmentDTO } from "./serializers";
 import { requireEnabledClinic } from "./tenant";
 import { defaultClinicId, isValidClinicSlug } from "./clinic-config";
 import { toPublicClinic } from "./clinic-runtime";
@@ -77,21 +77,17 @@ export async function createPublicBooking(clinic: ClinicRuntime, json: unknown) 
     },
   });
 
-  const created = await prisma.appointment.create({
-    data: {
-      clinicId: clinic.id,
-      ref: await uniqueRef(clinic.id, startAt),
-      patientId: patient.id,
-      service: data.service,
-      startAt,
-      endAt,
-      durationMin,
-      notes: data.notes || null,
-      status: clinic.flags.pendingApproval ? "PENDING" : "APPROVED",
-    },
-    include: appointmentInclude,
+  const created = await insertAppointment({
+    clinicId: clinic.id,
+    patientId: patient.id,
+    service: data.service,
+    startAt,
+    endAt,
+    durationMin,
+    notes: data.notes || null,
+    status: clinic.flags.pendingApproval ? "PENDING" : "APPROVED",
   });
-  await refreshPatientStats(patient.id);
+  await recordPatientBooking(patient.id, startAt);
 
   return NextResponse.json({
     ok: true,

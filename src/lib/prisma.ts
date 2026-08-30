@@ -1,7 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
-import { cache } from "react";
 import { HOSTED } from "./hosted-values";
 import { databaseUrl, isPostgresUrl } from "./db-url";
 
@@ -24,21 +23,17 @@ const log: ("error" | "warn")[] =
 
 type ClinicPrisma = PrismaClient;
 
-const globalForPrisma = globalThis as unknown as { prisma?: ClinicPrisma };
-
-function isWorkerd() {
-  return (
-    (typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers") ||
-    process.env["OPEN_NEXT"] === "1"
-  );
-}
+const globalForPrisma = globalThis as unknown as {
+  prisma?: ClinicPrisma;
+};
 
 function createPgAdapterClient(url: string): ClinicPrisma {
   const pool = new Pool({
     connectionString: url,
     max: 1,
-    idleTimeoutMillis: 10_000,
-    connectionTimeoutMillis: 10_000,
+    // Keep the isolate's one connection across back-to-back admin saves.
+    idleTimeoutMillis: 60_000,
+    connectionTimeoutMillis: 8_000,
   });
   const adapter = new PrismaPg(pool);
   return new PrismaClient({ adapter, log } as ConstructorParameters<typeof PrismaClient>[0]);
@@ -55,22 +50,12 @@ function createClient(): ClinicPrisma {
   });
 }
 
-function getPrismaUncached(): ClinicPrisma {
-  const url = databaseUrl();
-  if (isPostgresUrl(url) && isWorkerd()) {
-    return createClient();
-  }
+/** One Prisma client + Pool per isolate (Node or workerd). Never per property access. */
+export function getPrisma(): ClinicPrisma {
   if (!globalForPrisma.prisma) {
     globalForPrisma.prisma = createClient();
   }
   return globalForPrisma.prisma;
-}
-
-const getPrismaCached =
-  typeof cache === "function" ? cache(getPrismaUncached) : getPrismaUncached;
-
-export function getPrisma(): ClinicPrisma {
-  return getPrismaCached();
 }
 
 export const prisma: ClinicPrisma = new Proxy({} as ClinicPrisma, {
