@@ -1,3 +1,5 @@
+import { AsyncLocalStorage } from "node:async_hooks";
+import { cache } from "react";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
@@ -27,13 +29,23 @@ const globalForPrisma = globalThis as unknown as {
   prisma?: ClinicPrisma;
 };
 
+const prismaAls = new AsyncLocalStorage<ClinicPrisma>();
+
+function isWorkerdRuntime() {
+  return (
+    (typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers") ||
+    process.env["OPEN_NEXT"] === "1"
+  );
+}
+
 function createPgAdapterClient(url: string): ClinicPrisma {
   const pool = new Pool({
     connectionString: url,
     max: 1,
-    // Keep the isolate's one connection across back-to-back admin saves.
-    idleTimeoutMillis: 60_000,
-    connectionTimeoutMillis: 8_000,
+    // Request-scoped: do not hold TCP across Worker requests.
+    idleTimeoutMillis: 5_000,
+    connectionTimeoutMillis: 10_000,
+    allowExitOnIdle: true,
   });
   const adapter = new PrismaPg(pool);
   return new PrismaClient({ adapter, log } as ConstructorParameters<typeof PrismaClient>[0]);
@@ -50,8 +62,26 @@ function createClient(): ClinicPrisma {
   });
 }
 
-/** One Prisma client + Pool per isolate (Node or workerd). Never per property access. */
+/**
+ * One Pool for this request (shared across prisma.x access), not for the isolate.
+ * A process-lifetime pg Pool on workerd cannot keep TCP/TLS and times out (~8s).
+ */
+function requestScopedClient(): ClinicPrisma {
+  const existing = prismaAls.getStore();
+  if (existing) return existing;
+  const client = createClient();
+  prismaAls.enterWith(client);
+  return client;
+}
+
+const getPrismaForRequest =
+  typeof cache === "function" ? cache(requestScopedClient) : requestScopedClient;
+
 export function getPrisma(): ClinicPrisma {
+  const url = databaseUrl();
+  if (isPostgresUrl(url) && isWorkerdRuntime()) {
+    return getPrismaForRequest();
+  }
   if (!globalForPrisma.prisma) {
     globalForPrisma.prisma = createClient();
   }
