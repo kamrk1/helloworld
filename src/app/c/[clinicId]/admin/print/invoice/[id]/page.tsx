@@ -5,7 +5,6 @@ import { clinicLoginPath, clinicLogoUrl } from "@/lib/clinic-config";
 import { getClinicRuntime } from "@/lib/tenant";
 import { PrintTrigger } from "../../rx/[id]/PrintTrigger";
 import type { InvoiceItemDTO } from "@/lib/types";
-import { formatDateLong } from "@/lib/datetime";
 
 export const dynamic = "force-dynamic";
 
@@ -34,71 +33,124 @@ export default async function PrintInvoicePage({
     const items = JSON.parse(inv.itemsJson || "[]") as InvoiceItemDTO[];
     const logoSrc = clinic.hasLogo ? clinicLogoUrl(clinic.id, clinic.updatedAt) : "/logo.svg";
 
+    // Format date as DD/MM/YYYY
+    const d = new Date(inv.date);
+    const dateStr = `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+
+    // Fill empty rows to make it look like a bill book page (e.g. 8 rows total)
+    const totalRows = 8;
+    const paddedItems = [...items];
+    while (paddedItems.length < totalRows) {
+      paddedItems.push({ name: "", cost: 0 });
+    }
+
+    const isCash = inv.paymentMode.toLowerCase().includes("cash");
+    const isUpi = inv.paymentMode.toLowerCase().includes("upi");
+    const isCheque = inv.paymentMode.toLowerCase().includes("cheque");
+    
+    // If none matched nicely (e.g. they just typed something), fallback to a blank cheque line or just put it in the line
+    const showCheck = !isCash && !isUpi && inv.paymentMode ? inv.paymentMode : "";
+
     return (
-      <div className="min-h-dvh bg-[#ffffe6] px-6 py-8 text-slate-900 font-sans print:bg-white">
+      <div className="min-h-dvh bg-[#f9f7f1] px-4 py-8 text-[#222] font-serif print:bg-white print:p-0">
         <PrintTrigger auto={searchParams.print === "1"} clinicId={clinicId} />
-        <div className="mx-auto max-w-[720px] bg-transparent">
+        
+        <div className="mx-auto max-w-[700px] bg-white print:bg-transparent shadow-sm print:shadow-none p-10 print:p-2 border border-slate-200 print:border-none">
           
-          <div className="flex justify-between items-center mb-6">
-            <div className="text-sm font-semibold leading-snug">
-              Dr. Anupam R. Singh<br/>
-              <span className="text-xs">A-30006<br/>B.D.S. (Mumbai)</span>
+          {/* Header */}
+          <div className="text-center mb-6">
+            <h1 className="text-2xl font-bold mb-4 font-serif tracking-wide">{clinic.name}</h1>
+            
+            <div className="flex justify-between items-start mb-2">
+              <div className="text-sm font-semibold text-left leading-snug">
+                Dr. Anupam R. Singh<br/>
+                <span className="text-xs font-normal">A-30006<br/>B.D.S. (Mumbai)</span>
+              </div>
+              <div className="flex flex-col items-center">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={logoSrc} alt="" className="h-14 object-contain" />
+              </div>
+              <div className="text-sm font-semibold text-right leading-snug">
+                Dr. Priya Singh<br/>
+                <span className="text-xs font-normal">A-11766<br/>B.D.S. (Mumbai)</span>
+              </div>
             </div>
-            <div className="flex flex-col items-center">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={logoSrc} alt="" className="h-16 object-contain mb-1" />
-              <div className="text-[10px] font-bold">Contact : {clinic.phone}</div>
-            </div>
-            <div className="text-sm font-semibold text-right leading-snug">
-              Dr. Priya Singh<br/>
-              <span className="text-xs">A-11766<br/>B.D.S. (Mumbai)</span>
-            </div>
+            <div className="text-xs font-medium mt-4">Contact : {clinic.phone}</div>
           </div>
           
-          <div className="border-t-2 border-b-2 border-slate-800 py-1 text-center font-display text-xl font-bold uppercase tracking-wide">
-            {clinic.name}
-          </div>
+          <hr className="border-t border-black mb-6" />
           
-          <div className="mt-4 flex justify-between items-center font-medium">
-            <div className="text-lg">Bill No. <span className="font-bold ml-2">{inv.billNo}</span></div>
-            <div className="text-lg">Date : <span className="font-bold ml-2">{formatDateLong(new Date(inv.date))}</span></div>
-          </div>
-          
-          <div className="mt-6 text-lg leading-loose font-medium">
+          {/* Bill No & Date */}
+          <div className="flex justify-between items-center mb-4 text-[15px]">
             <div className="flex items-end">
-              <span className="whitespace-nowrap mr-2">Received with thanks from Mr. / Mrs.</span>
-              <span className="flex-1 border-b border-black font-semibold px-2">{appt.patient.name}</span>
+              <span className="mr-2">Bill No.</span>
+              <span className="font-bold border-b border-black px-2 pb-0.5 min-w-[100px]">{inv.billNo}</span>
             </div>
-            
-            <div className="flex items-end mt-2">
-              <span className="whitespace-nowrap mr-2">The sum of Rupees</span>
-              <span className="flex-1 border-b border-black font-semibold px-2">{inv.amountWords}</span>
-            </div>
-            
-            <div className="flex items-end mt-2">
-              <span className="whitespace-nowrap mr-2">By Cash / UPI / Cheque No.</span>
-              <span className="flex-1 border-b border-black font-semibold px-2">{inv.paymentMode}</span>
+            <div className="flex items-end">
+              <span className="mr-2">Date :</span>
+              <span className="border-b border-black px-2 pb-0.5 min-w-[120px]">{dateStr}</span>
             </div>
           </div>
           
-          <div className="mt-8 border-t-2 border-b-2 border-black">
-            {items.map((item, idx) => (
-              <div key={idx} className="flex justify-between border-b border-dashed border-slate-400 py-3 px-2">
-                <span className="font-medium">{item.name}</span>
-                <span className="font-bold">₹{item.cost.toLocaleString()}</span>
+          {/* Patient Details */}
+          <div className="flex items-end mb-4 text-[15px]">
+            <span className="whitespace-nowrap mr-2">Received with thanks from Mr. / Mrs.</span>
+            <span className="flex-1 border-b border-black px-2 pb-0.5">{appt.patient.name}</span>
+          </div>
+          
+          <div className="flex items-end mb-4 text-[15px]">
+            <span className="whitespace-nowrap mr-2">The sum of Rupees</span>
+            <span className="flex-1 border-b border-black px-2 pb-0.5 italic text-sm">{inv.amountWords}</span>
+          </div>
+          
+          <div className="flex items-center mb-8 text-[15px]">
+            <span className="mr-3">By</span>
+            <div className="flex items-center gap-1 mr-4">
+              <div className="w-3.5 h-3.5 rounded-full border border-black flex items-center justify-center">
+                {isCash && <div className="w-2 h-2 bg-black rounded-full" />}
+              </div>
+              <span>Cash</span>
+            </div>
+            <div className="flex items-center gap-1 mr-4">
+              <div className="w-3.5 h-3.5 rounded-full border border-black flex items-center justify-center">
+                {isUpi && <div className="w-2 h-2 bg-black rounded-full" />}
+              </div>
+              <span>UPI</span>
+            </div>
+            <div className="flex items-center gap-1 mr-2">
+              <div className="w-3.5 h-3.5 rounded-full border border-black flex items-center justify-center">
+                {isCheque && <div className="w-2 h-2 bg-black rounded-full" />}
+              </div>
+              <span>Cheque No.</span>
+            </div>
+            <span className="flex-1 border-b border-black inline-block min-h-[20px] pb-0.5 px-2">{showCheck}</span>
+          </div>
+          
+          {/* Items Table */}
+          <div className="w-full">
+            {paddedItems.map((item, idx) => (
+              <div key={idx} className="flex justify-between items-end border-b border-black py-2.5 px-1 text-[15px]">
+                <span className="flex-1">{item.name}</span>
+                <div className="flex justify-between w-32 shrink-0">
+                  <span className="text-gray-500 text-sm pl-2">₹</span>
+                  <span className="font-medium text-right pr-1">
+                    {item.name ? item.cost.toLocaleString() : ""}
+                  </span>
+                </div>
               </div>
             ))}
           </div>
           
-          <div className="flex justify-between items-center py-3 px-2">
-            <span className="font-bold text-xl uppercase tracking-wider">Total</span>
-            <span className="font-bold text-xl border-b-[3px] border-black pb-1">₹{inv.totalAmount.toLocaleString()}</span>
+          <div className="flex justify-end items-center mt-3 pr-1 text-[15px]">
+            <span className="mr-6">Total</span>
+            <span className="font-bold text-lg">₹ {inv.totalAmount.toLocaleString()}</span>
           </div>
           
-          <div className="mt-16 text-center">
-            <div className="text-xs font-semibold mb-1">॥श्री॥</div>
-            <div className="font-bold text-lg">{clinic.name}</div>
-            <div className="text-sm font-medium mt-1">{clinic.address}</div>
+          {/* Footer */}
+          <div className="mt-20">
+            <div className="text-right font-bold text-[15px] mb-8">{clinic.name}</div>
+            <hr className="border-t border-black mb-3" />
+            <div className="text-center text-xs">{clinic.address}</div>
           </div>
 
         </div>
