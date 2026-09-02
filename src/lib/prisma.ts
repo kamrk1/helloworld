@@ -1,9 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import { PrismaClient } from "@prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { Pool } from "pg";
+import { PrismaClient as EdgePrismaClient } from "@prisma/client/edge";
 import { HOSTED } from "./hosted-values";
-import { databaseUrl, isPostgresUrl } from "./db-url";
+import { databaseUrl } from "./db-url";
 
 function applyHosted(key: keyof typeof HOSTED) {
   const value = HOSTED[key];
@@ -22,52 +20,35 @@ if (!process.env["DATABASE_URL"]) {
 const log: ("error" | "warn")[] =
   process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"];
 
-type ClinicPrisma = PrismaClient;
+type ClinicPrisma = import("@prisma/client").PrismaClient;
 
 const globalForPrisma = globalThis as unknown as {
   prisma?: ClinicPrisma;
 };
 
-/**
- * Request scope. workerd implements AsyncLocalStorage.run / getStore,
- * not enterWith (that 500'd the live Worker).
- */
 const prismaAls = new AsyncLocalStorage<ClinicPrisma>();
-const requestPools = new WeakMap<ClinicPrisma, Pool>();
 
 function isCloudflareWorker() {
   return typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers";
 }
 
-function createPgAdapterClient(url: string): ClinicPrisma {
-  const pool = new Pool({
-    connectionString: url,
-    max: 1,
-    idleTimeoutMillis: 5_000,
-    connectionTimeoutMillis: 10_000,
-    allowExitOnIdle: true,
-  });
-  const adapter = new PrismaPg(pool);
-  const client = new PrismaClient({ adapter, log } as ConstructorParameters<typeof PrismaClient>[0]);
-  requestPools.set(client, pool);
-  return client;
-}
-
-import { PrismaClient as EdgePrismaClient } from "@prisma/client/edge";
-
 function createClient(): ClinicPrisma {
   const url = databaseUrl();
-  if (url.startsWith("prisma+postgres://") || url.startsWith("prisma://")) {
-    // Accelerate uses HTTP fetch via the Edge client, completely bypassing WASM and eval
+  
+  if (isCloudflareWorker() || url.startsWith("prisma+postgres://") || url.startsWith("prisma://")) {
+    // Cloudflare Workers strictly blocks WASM and eval. 
+    // We MUST use the Edge client with a Prisma Accelerate HTTP URL.
     return new EdgePrismaClient({
       log,
       datasources: { db: { url } },
     }) as unknown as ClinicPrisma;
   }
-  if (isPostgresUrl(url)) {
-    // Raw Postgres URLs use adapter-pg (crashes with eval on CF, requires Accelerate instead)
-    return createPgAdapterClient(url);
-  }
+
+  // Local development (SQLite) or native Node.js environments
+  // Dynamically require the standard Prisma client so ESBuild doesn't bundle its WASM/Node bindings into Cloudflare
+  const moduleName = "@prisma" + "/client";
+  // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
+  const { PrismaClient } = require(moduleName);
   return new PrismaClient({
     log,
     datasources: { db: { url } },
@@ -79,12 +60,7 @@ function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
 }
 
 function releaseRequestClient(client: ClinicPrisma) {
-  const pool = requestPools.get(client);
-  requestPools.delete(client);
-  return Promise.all([
-    pool ? pool.end().catch(() => undefined) : Promise.resolve(),
-    client.$disconnect().catch(() => undefined),
-  ]);
+  return client.$disconnect().catch(() => undefined);
 }
 
 function cloudflareWaitUntil(pending: Promise<unknown>) {
@@ -94,8 +70,6 @@ function cloudflareWaitUntil(pending: Promise<unknown>) {
   cf?.ctx?.waitUntil?.(pending);
 }
 
-/** One Pool for this callback (and every prisma.x inside it). Never enterWith.
- *  Close the Pool after the handler settles so the next request can connect (Prisma Postgres connection cap). */
 export function runWithRequestPrisma<T>(fn: () => T): T {
   if (prismaAls.getStore()) return fn();
   if (isCloudflareWorker()) {
