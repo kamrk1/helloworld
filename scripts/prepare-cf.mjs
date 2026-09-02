@@ -40,8 +40,8 @@ if (existsSync("hosted.json")) {
     }
   }
 }
-loadEnvFile(".env");
 loadEnvFile(".env.local");
+loadEnvFile(".env");
 
 process.env.OPEN_NEXT = "1";
 process.env.NEXTJS_ENV = process.env.NEXTJS_ENV || "production";

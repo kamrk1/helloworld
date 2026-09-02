@@ -1,7 +1,7 @@
 generator client {
   provider        = "prisma-client-js"
-  previewFeatures = ["driverAdapters"]
   output          = "../../src/generated/cloud"
+  previewFeatures = ["driverAdapters"]
   binaryTargets   = ["native", "rhel-openssl-3.0.x"]
 }
 
@@ -19,12 +19,11 @@ model Clinic {
   timezone        String         @default("Asia/Kolkata")
   hoursOpen       String         @default("10:00")
   hoursClose      String         @default("20:00")
-  hoursJson       String         @default("[]")
   closedWeekdays  String         @default("[0]")
   slotMinutes     Int            @default(30)
   defaultDuration Int            @default(30)
   durationsJson   String         @default("[30,60,90]")
-  servicesJson    String
+  servicesJson    String         @default("[]")
   phone           String         @default("")
   address         String         @default("")
   reviewUrl       String         @default("")
@@ -36,18 +35,17 @@ model Clinic {
   flagsJson       String         @default("{}")
   enabled         Boolean        @default(true)
   createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-  patients        Patient[]
+  updatedAt       DateTime       @default(now()) @updatedAt
+  hoursJson       String         @default("[]")
   appointments    Appointment[]
   blocks          ClinicBlock[]
-  prescriptions   Prescription[]
   invoices        Invoice[]
+  patients        Patient[]
+  prescriptions   Prescription[]
 }
 
 model Patient {
   id            String        @id @default(cuid())
-  clinicId      String
-  clinic        Clinic        @relation(fields: [clinicId], references: [id], onDelete: Cascade)
   phone         String?
   name          String
   email         String?
@@ -57,32 +55,34 @@ model Patient {
   concerns      String?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
+  clinicId      String        @default("sdc")
   appointments  Appointment[]
+  clinic        Clinic        @relation(fields: [clinicId], references: [id], onDelete: Cascade)
 
   @@unique([clinicId, phone])
   @@index([clinicId])
 }
 
 model Appointment {
-  id               String            @id @default(cuid())
-  clinicId         String
-  clinic           Clinic            @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  id               String        @id @default(cuid())
   ref              String
   patientId        String
-  patient          Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
   service          String
   startAt          DateTime
   endAt            DateTime
-  durationMin      Int               @default(30)
+  durationMin      Int           @default(30)
   notes            String?
-  status           String            @default("PENDING")
+  status           String        @default("PENDING")
   googleCalEventId String?
   rxLink           String?
   followupDate     DateTime?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  prescription     Prescription?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  clinicId         String        @default("sdc")
+  clinic           Clinic        @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  patient          Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
   invoice          Invoice?
+  prescription     Prescription?
 
   @@unique([clinicId, ref])
   @@index([clinicId, startAt])
@@ -94,10 +94,7 @@ model Appointment {
 
 model Prescription {
   id            String      @id @default(cuid())
-  clinicId      String
-  clinic        Clinic      @relation(fields: [clinicId], references: [id], onDelete: Cascade)
   appointmentId String      @unique
-  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
   complaints    String
   findings      String
   diagnosis     String
@@ -106,19 +103,22 @@ model Prescription {
   followupNote  String?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
+  clinicId      String      @default("sdc")
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  clinic        Clinic      @relation(fields: [clinicId], references: [id], onDelete: Cascade)
 
   @@index([clinicId])
 }
 
 model ClinicBlock {
   id        String   @id @default(cuid())
-  clinicId  String
-  clinic    Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
   startAt   DateTime
   endAt     DateTime
   allDay    Boolean  @default(false)
   reason    String?
   createdAt DateTime @default(now())
+  clinicId  String   @default("sdc")
+  clinic    Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
 
   @@index([clinicId, startAt, endAt])
   @@index([startAt, endAt])
@@ -127,9 +127,7 @@ model ClinicBlock {
 model Invoice {
   id            String      @id @default(cuid())
   clinicId      String
-  clinic        Clinic      @relation(fields: [clinicId], references: [id], onDelete: Cascade)
   appointmentId String      @unique
-  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
   billNo        String
   date          DateTime    @default(now())
   amountWords   String
@@ -138,6 +136,8 @@ model Invoice {
   totalAmount   Float
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  clinic        Clinic      @relation(fields: [clinicId], references: [id], onDelete: Cascade)
 
   @@index([clinicId])
 }
