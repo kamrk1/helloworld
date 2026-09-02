@@ -1,6 +1,6 @@
 import { Prisma, type Appointment, type Patient, type ClinicBlock, type Prescription } from "@prisma/client";
 import type { AppointmentStatus, ClinicRuntime } from "./clinic-config";
-import type { AppointmentDTO, BlockDTO, PatientDTO, PrescriptionDTO } from "./types";
+import type { AppointmentDTO, BlockDTO, PatientDTO, PrescriptionDTO, InvoiceDTO } from "./types";
 import { prisma } from "./prisma";
 import { getISTParts } from "./datetime";
 import { toAdminClinic } from "./clinic-runtime";
@@ -8,6 +8,7 @@ import { toAdminClinic } from "./clinic-runtime";
 type ApptWithPatient = Appointment & {
   patient: Patient;
   prescription?: { id: string } | null;
+  invoice?: { id: string } | null;
 };
 
 export function toAppointmentDTO(row: ApptWithPatient): AppointmentDTO {
@@ -28,6 +29,7 @@ export function toAppointmentDTO(row: ApptWithPatient): AppointmentDTO {
     rxLink: row.rxLink,
     followupDate: row.followupDate ? row.followupDate.toISOString() : null,
     hasPrescription: Boolean(row.prescription ?? row.rxLink),
+    hasInvoice: Boolean(row.invoice),
   };
 }
 
@@ -67,6 +69,19 @@ export function toPrescriptionDTO(row: Prescription): PrescriptionDTO {
   };
 }
 
+export function toInvoiceDTO(row: any): InvoiceDTO {
+  return {
+    id: row.id,
+    appointmentId: row.appointmentId,
+    billNo: row.billNo,
+    date: row.date.toISOString(),
+    amountWords: row.amountWords,
+    paymentMode: row.paymentMode,
+    items: JSON.parse(row.itemsJson || "[]"),
+    totalAmount: row.totalAmount,
+  };
+}
+
 export function makeRef(clinicId: string, date: Date) {
   const p = getISTParts(date);
   const ymd = `${p.year}${String(p.month).padStart(2, "0")}${String(p.day).padStart(2, "0")}`;
@@ -93,6 +108,7 @@ function isUniqueRefConflict(err: unknown) {
 export const appointmentInclude = {
   patient: true,
   prescription: { select: { id: true } },
+  invoice: { select: { id: true } },
 } as const;
 
 type AppointmentCreateFields = {
@@ -123,7 +139,7 @@ export async function insertAppointment(data: AppointmentCreateFields) {
 }
 
 export function toAppointmentDTOFromPatient(row: Appointment, patient: Patient): AppointmentDTO {
-  return toAppointmentDTO({ ...row, patient, prescription: null });
+  return toAppointmentDTO({ ...row, patient, prescription: null, invoice: null });
 }
 
 const ACTIVE_STATUSES = ["PENDING", "APPROVED", "CONFIRMED"] as const;

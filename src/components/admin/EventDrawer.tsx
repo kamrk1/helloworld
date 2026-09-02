@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MessageCircle, Phone, Printer, Trash2, X } from "lucide-react";
+import { MessageCircle, Phone, Printer, Trash2, X, Receipt } from "lucide-react";
 import type { AppointmentDTO, BlockDTO } from "@/lib/types";
 import type { AppointmentStatus } from "@/lib/clinic-config";
 import { displayPhone, hasMobile, telLink, waLink } from "@/lib/phone";
@@ -12,6 +12,7 @@ import { useToast } from "./Toast";
 import { apiJson, apiFetch, errorFromHttpResponse } from "@/lib/api-client";
 import { AppointmentFormModal } from "./AppointmentFormModal";
 import { PrescriptionModal } from "./PrescriptionModal";
+import { InvoiceModal } from "./InvoiceModal";
 import { useOverlayDismiss } from "./useOverlayDismiss";
 
 export function EventDrawer({
@@ -27,6 +28,7 @@ export function EventDrawer({
   const toast = useToast();
   const [editing, setEditing] = useState(false);
   const [rx, setRx] = useState(false);
+  const [invoice, setInvoice] = useState(false);
   const [follow, setFollow] = useState(
     appointment?.followupDate ? toISODateIST(new Date(appointment.followupDate)) : "",
   );
@@ -247,6 +249,9 @@ export function EventDrawer({
                     <Printer className="h-4 w-4" /> Rx
                   </button>
                 )}
+                <button type="button" className="btn-gold" onClick={() => setInvoice(true)}>
+                  <Receipt className="h-4 w-4" /> Bill
+                </button>
                 {confirmDelete ? (
                   <div className="ml-auto flex min-w-0 flex-1 items-center justify-end gap-2">
                     <span className="hidden text-xs text-slate-500 sm:inline">Delete {live.ref}?</span>
@@ -318,6 +323,7 @@ export function EventDrawer({
       {rx && live && flags.prescriptions && (
         <PrescriptionModal appointment={live} onClose={() => setRx(false)} />
       )}
+      {invoice && live && <InvoiceModal appointment={live} onClose={() => setInvoice(false)} />}
     </>
   );
 }

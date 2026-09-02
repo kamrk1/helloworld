@@ -40,6 +40,7 @@ model Clinic {
   appointments    Appointment[]
   blocks          ClinicBlock[]
   prescriptions   Prescription[]
+  invoices        Invoice[]
 }
 
 model Patient {
@@ -80,6 +81,7 @@ model Appointment {
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   prescription     Prescription?
+  invoice          Invoice?
 
   @@unique([clinicId, ref])
   @@index([clinicId, startAt])
@@ -119,4 +121,22 @@ model ClinicBlock {
 
   @@index([clinicId, startAt, endAt])
   @@index([startAt, endAt])
+}
+
+model Invoice {
+  id            String      @id @default(cuid())
+  clinicId      String
+  clinic        Clinic      @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  appointmentId String      @unique
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  billNo        String
+  date          DateTime    @default(now())
+  amountWords   String
+  paymentMode   String
+  itemsJson     String
+  totalAmount   Float
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([clinicId])
 }

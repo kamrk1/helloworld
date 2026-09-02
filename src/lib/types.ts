@@ -18,6 +18,7 @@ export type AppointmentDTO = {
   rxLink: string | null;
   followupDate: string | null;
   hasPrescription: boolean;
+  hasInvoice: boolean;
 };
 
 export type PatientDTO = {
@@ -29,6 +30,22 @@ export type PatientDTO = {
   lastVisit: string | null;
   totalBookings: number;
   concerns: string | null;
+};
+
+export type InvoiceItemDTO = {
+  name: string;
+  cost: number;
+};
+
+export type InvoiceDTO = {
+  id: string;
+  appointmentId: string;
+  billNo: string;
+  date: string;
+  amountWords: string;
+  paymentMode: string;
+  items: InvoiceItemDTO[];
+  totalAmount: number;
 };
 
 export type BlockDTO = {

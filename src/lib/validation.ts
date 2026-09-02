@@ -190,6 +190,18 @@ export const prescriptionSchema = z.object({
   followupDate: z.string().nullable().optional(),
 });
 
+export const invoiceSchema = z.object({
+  billNo: z.string().trim().min(1).max(100),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format"),
+  amountWords: z.string().trim().max(500),
+  paymentMode: z.string().trim().max(100),
+  items: z.array(z.object({
+    name: z.string().trim().min(1).max(200),
+    cost: z.number().min(0),
+  })).min(1, "Add at least one item"),
+  totalAmount: z.number().min(0),
+});
+
 const ZOD_NOISE =
   /must contain at least|too_small|Invalid datetime|Invalid enum value|^Required$|Expected |Invalid (input|type|literal)/i;
 
