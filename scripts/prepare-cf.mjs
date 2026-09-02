@@ -56,7 +56,11 @@ mkdirSync(dirname(workersPath), { recursive: true });
 writeFileSync(workersPath, workersSchema);
 
 function run(cmd, args) {
-  const result = spawnSync(cmd, args, { stdio: "inherit", cwd: root, env: process.env });
+  const result = spawnSync(cmd, args, { stdio: "inherit", cwd: root, env: process.env, shell: process.platform === "win32" });
+  if (result.error) {
+    console.error(result.error);
+    process.exit(1);
+  }
   if (result.status !== 0) {
     process.exit(result.status ?? 1);
   }
@@ -70,7 +74,7 @@ if (/^(postgres(ql)?|prisma\+postgres):/i.test(db)) {
   const migrate = spawnSync(
     "npx",
     ["prisma", "migrate", "deploy", "--schema", "prisma/cloud/schema.prisma"],
-    { stdio: "inherit", cwd: root, env: process.env },
+    { stdio: "inherit", cwd: root, env: process.env, shell: process.platform === "win32" },
   );
   if (migrate.status !== 0) {
     console.warn("Cloud migrate failed — continuing OpenNext build. Set DATABASE_URL to a reachable Postgres URL.");
