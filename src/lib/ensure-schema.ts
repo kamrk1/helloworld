@@ -34,11 +34,14 @@ function ensureSqliteHoursJson() {
 
 async function applySqliteHoursJson() {
   try {
-    await prisma.$executeRawUnsafe(
-      `ALTER TABLE "Clinic" ADD COLUMN "hoursJson" TEXT NOT NULL DEFAULT '[]'`,
-    );
+    const cols = await prisma.$queryRawUnsafe<any[]>(`PRAGMA table_info("Clinic")`);
+    if (!cols.find((c) => c.name === "hoursJson")) {
+      await prisma.$executeRawUnsafe(
+        `ALTER TABLE "Clinic" ADD COLUMN "hoursJson" TEXT NOT NULL DEFAULT '[]'`,
+      );
+    }
   } catch {
-    /* duplicate column */
+    /* ignore */
   }
 }
 
