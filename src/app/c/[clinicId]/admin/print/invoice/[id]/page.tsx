@@ -31,7 +31,6 @@ export default async function PrintInvoicePage({
     if (!appt || !appt.invoice) notFound();
     const inv = appt.invoice;
     const items = JSON.parse(inv.itemsJson || "[]") as InvoiceItemDTO[];
-    const logoSrc = clinic.hasLogo ? clinicLogoUrl(clinic.id, clinic.updatedAt) : "/logo.svg";
 
     // Format date as DD/MM/YYYY
     const d = new Date(inv.date);

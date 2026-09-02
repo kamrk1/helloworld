@@ -10,6 +10,7 @@ import { adminBase } from "@/lib/clinic-config";
 import { apiJson } from "@/lib/api-client";
 import { Trash2 } from "lucide-react";
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 function numberToWords(num: number): string {
   if (num === 0) return "Zero Only";
   const a = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];

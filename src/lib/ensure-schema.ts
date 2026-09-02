@@ -34,6 +34,7 @@ function ensureSqliteHoursJson() {
 
 async function applySqliteHoursJson() {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const cols = await prisma.$queryRawUnsafe<any[]>(`PRAGMA table_info("Clinic")`);
     if (!cols.find((c) => c.name === "hoursJson")) {
       await prisma.$executeRawUnsafe(

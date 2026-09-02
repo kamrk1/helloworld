@@ -69,6 +69,7 @@ export function toPrescriptionDTO(row: Prescription): PrescriptionDTO {
   };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function toInvoiceDTO(row: any): InvoiceDTO {
   return {
     id: row.id,
