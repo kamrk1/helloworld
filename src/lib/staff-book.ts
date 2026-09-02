@@ -57,6 +57,7 @@ function dtoFromRow(row: BookRow): AppointmentDTO {
     rxLink: row.rxLink,
     followupDate: row.followupDate ? new Date(row.followupDate).toISOString() : null,
     hasPrescription: false,
+    hasInvoice: false,
   };
 }
 
