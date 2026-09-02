@@ -29,7 +29,12 @@ const globalForPrisma = globalThis as unknown as {
 const prismaAls = new AsyncLocalStorage<ClinicPrisma>();
 
 function isCloudflareWorker() {
-  return process.env["OPEN_NEXT"] === "1" || (typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers");
+  return (
+    process.env["OPEN_NEXT"] === "1" ||
+    (typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers") ||
+    typeof (globalThis as unknown as Record<string, unknown>).WebSocketPair !== "undefined" ||
+    !!(globalThis as unknown as Record<symbol, unknown>)[Symbol.for("__cloudflare-context__")]
+  );
 }
 
 function createClient(): ClinicPrisma {
@@ -46,9 +51,9 @@ function createClient(): ClinicPrisma {
 
   // Local development (SQLite) or native Node.js environments
   // Dynamically require the standard Prisma client so ESBuild doesn't bundle its WASM/Node bindings into Cloudflare
-  const moduleName = "@prisma" + "/client";
+  const pkgName = ["@prisma", "client"].join("/");
   // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
-  const { PrismaClient } = require(moduleName);
+  const { PrismaClient } = require(pkgName);
   return new PrismaClient({
     log,
     datasources: { db: { url } },
