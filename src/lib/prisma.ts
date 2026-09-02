@@ -55,7 +55,15 @@ function createPgAdapterClient(url: string): ClinicPrisma {
 
 function createClient(): ClinicPrisma {
   const url = databaseUrl();
+  if (url.startsWith("prisma+postgres://") || url.startsWith("prisma://")) {
+    // Accelerate uses HTTP fetch, perfectly safe for Cloudflare Workers
+    return new PrismaClient({
+      log,
+      datasources: { db: { url } },
+    } as ConstructorParameters<typeof PrismaClient>[0]);
+  }
   if (isPostgresUrl(url)) {
+    // Raw Postgres URLs use adapter-pg (crashes with eval on CF, requires Accelerate instead)
     return createPgAdapterClient(url);
   }
   return new PrismaClient({
