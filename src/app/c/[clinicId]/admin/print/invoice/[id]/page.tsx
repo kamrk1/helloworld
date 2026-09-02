@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { prisma, runWithRequestPrisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { clinicLoginPath, clinicLogoUrl } from "@/lib/clinic-config";
+import { clinicLoginPath } from "@/lib/clinic-config";
 import { getClinicRuntime } from "@/lib/tenant";
 import { PrintTrigger } from "../../rx/[id]/PrintTrigger";
 import type { InvoiceItemDTO } from "@/lib/types";
