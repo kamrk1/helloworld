@@ -52,7 +52,7 @@ export default async function PrintInvoicePage({
     const showCheck = !isCash && !isUpi && inv.paymentMode ? inv.paymentMode : "";
 
     return (
-      <div className="min-h-dvh bg-[#f9f7f1] px-4 py-8 text-[#222] font-serif print:bg-white print:p-0">
+      <div className="min-h-dvh bg-[#f9f7f1] px-4 py-8 text-[#222] font-serif print:bg-white print:p-0" style={{ WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }}>
         <PrintTrigger auto={searchParams.print === "1"} clinicId={clinicId} />
         
         <div className="mx-auto max-w-[700px] bg-white print:bg-transparent shadow-sm print:shadow-none p-10 print:p-2 border border-slate-200 print:border-none">
@@ -68,7 +68,7 @@ export default async function PrintInvoicePage({
               </div>
               <div className="flex flex-col items-center">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logo.png" alt="" className="h-14 object-contain" />
+                <img src="/logo.png" alt="" className="h-14 object-contain" style={{ WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }} />
               </div>
               <div className="text-sm font-semibold text-right leading-snug">
                 Dr. Priya Singh<br/>
@@ -106,21 +106,24 @@ export default async function PrintInvoicePage({
           <div className="flex items-center mb-8 text-[15px]">
             <span className="mr-3">By</span>
             <div className="flex items-center gap-1 mr-4">
-              <div className="w-3.5 h-3.5 rounded-full border border-black flex items-center justify-center">
-                {isCash && <div className="w-2 h-2 bg-black rounded-full" />}
-              </div>
+              <svg className="w-4 h-4 text-black" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5" />
+                {isCash && <circle cx="8" cy="8" r="4" fill="currentColor" />}
+              </svg>
               <span>Cash</span>
             </div>
             <div className="flex items-center gap-1 mr-4">
-              <div className="w-3.5 h-3.5 rounded-full border border-black flex items-center justify-center">
-                {isUpi && <div className="w-2 h-2 bg-black rounded-full" />}
-              </div>
+              <svg className="w-4 h-4 text-black" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5" />
+                {isUpi && <circle cx="8" cy="8" r="4" fill="currentColor" />}
+              </svg>
               <span>UPI</span>
             </div>
             <div className="flex items-center gap-1 mr-2">
-              <div className="w-3.5 h-3.5 rounded-full border border-black flex items-center justify-center">
-                {isCheque && <div className="w-2 h-2 bg-black rounded-full" />}
-              </div>
+              <svg className="w-4 h-4 text-black" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5" />
+                {isCheque && <circle cx="8" cy="8" r="4" fill="currentColor" />}
+              </svg>
               <span>Cheque No.</span>
             </div>
             <span className="flex-1 border-b border-black inline-block min-h-[20px] pb-0.5 px-2">{showCheck}</span>
