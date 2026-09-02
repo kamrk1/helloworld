@@ -29,7 +29,7 @@ const globalForPrisma = globalThis as unknown as {
 const prismaAls = new AsyncLocalStorage<ClinicPrisma>();
 
 function isCloudflareWorker() {
-  return typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers";
+  return process.env["OPEN_NEXT"] === "1" || (typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers");
 }
 
 function createClient(): ClinicPrisma {
