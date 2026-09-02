@@ -59,7 +59,7 @@ export default async function PrintInvoicePage({
           
           {/* Header */}
           <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold mb-4 font-serif tracking-wide">{clinic.name}</h1>
+            <h1 className="text-2xl font-bold mb-4 font-serif tracking-wide">Datta Dental Care & Implant Centre</h1>
             
             <div className="flex justify-between items-start mb-2">
               <div className="text-sm font-semibold text-left leading-snug">
@@ -68,14 +68,14 @@ export default async function PrintInvoicePage({
               </div>
               <div className="flex flex-col items-center">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={logoSrc} alt="" className="h-14 object-contain" />
+                <img src="/logo.png" alt="" className="h-14 object-contain" />
               </div>
               <div className="text-sm font-semibold text-right leading-snug">
                 Dr. Priya Singh<br/>
                 <span className="text-xs font-normal">A-11766<br/>B.D.S. (Mumbai)</span>
               </div>
             </div>
-            <div className="text-xs font-medium mt-4">Contact : {clinic.phone}</div>
+            <div className="text-xs font-medium mt-4">Contact : 7021135010</div>
           </div>
           
           <hr className="border-t border-black mb-6" />
@@ -132,7 +132,9 @@ export default async function PrintInvoicePage({
               <div key={idx} className="flex justify-between items-end border-b border-black py-2.5 px-1 text-[15px]">
                 <span className="flex-1">{item.name}</span>
                 <div className="flex justify-between w-32 shrink-0">
-                  <span className="text-gray-500 text-sm pl-2">₹</span>
+                  <span className="text-gray-500 text-sm pl-2">
+                    {item.name ? "₹" : ""}
+                  </span>
                   <span className="font-medium text-right pr-1">
                     {item.name ? item.cost.toLocaleString() : ""}
                   </span>
@@ -148,9 +150,9 @@ export default async function PrintInvoicePage({
           
           {/* Footer */}
           <div className="mt-20">
-            <div className="text-right font-bold text-[15px] mb-8">{clinic.name}</div>
+            <div className="text-right font-bold text-[15px] mb-8">Datta Dental Care & Implant Centre</div>
             <hr className="border-t border-black mb-3" />
-            <div className="text-center text-xs">{clinic.address}</div>
+            <div className="text-center text-xs">Shop No. 6, Shyam Residency, Sector 2A, Plot 98, Karanjade, Panvel</div>
           </div>
 
         </div>
