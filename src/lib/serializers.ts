@@ -1,4 +1,5 @@
-import { Prisma, type Appointment, type Patient, type ClinicBlock, type Prescription } from "@prisma/client";
+import type { Appointment, Patient, ClinicBlock, Prescription } from "@prisma/client";
+import { Prisma } from "@prisma/client/edge";
 import type { AppointmentStatus, ClinicRuntime } from "./clinic-config";
 import type { AppointmentDTO, BlockDTO, PatientDTO, PrescriptionDTO, InvoiceDTO } from "./types";
 import { prisma } from "./prisma";
